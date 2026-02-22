@@ -2,7 +2,6 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
   <title>Тренажёр устной части ОГЭ</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
@@ -12,6 +11,8 @@
     #task { margin: 15px 0; font-size: 1.2rem; border: 1px solid #ccc; padding: 10px; min-height: 60px; }
     .controls { margin-top: 10px; }
   </style>
+  <!-- LameJS для конвертации в MP3 -->
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
   <h1>Тренажёр устной части ОГЭ</h1>
@@ -31,7 +32,7 @@
     <button id="startRecBtn" disabled>🎤 Запись</button>
     <button id="stopRecBtn" disabled>⏹ Стоп</button>
     <button id="playRecBtn" disabled>▶ Проиграть</button>
-    <button id="downloadRecBtn" disabled>💾 Скачать</button>
+    <button id="downloadRecBtn" disabled>💾 Скачать MP3</button>
   </div>
 
   <audio id="player" controls style="display:none; width:100%; margin-top:10px;"></audio>
