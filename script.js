@@ -24,10 +24,10 @@ let timeLeft = 0;
 // АУДИО
 let mediaRecorder = null;
 let audioChunks = [];
-let lastAudioBlob = null;   // webm
+let lastAudioBlob = null;   // записанный webm
 let currentStream = null;
 
-// ЗАГРУЖАЕМ ЗАДАНИЯ
+// === ЗАГРУЖАЕМ ЗАДАНИЯ ИЗ tasks.json ===
 fetch('tasks.json')
   .then(res => res.json())
   .then(data => {
@@ -40,14 +40,14 @@ fetch('tasks.json')
     taskDiv.textContent = 'Ошибка загрузки заданий.';
   });
 
-// СТАРТ ЭКЗАМЕНА
+// === СТАРТ ЭКЗАМЕНА ===
 startExamBtn.addEventListener('click', () => {
   currentVariant = parseInt(variantSelect.value, 10);
   currentTaskIndex = 0;
   loadTask();
 });
 
-// ЗАГРУЗКА ЗАДАНИЯ
+// === ЗАГРУЗКА ЗАДАНИЯ ===
 function loadTask() {
   const tasks = variants[currentVariant];
   if (!tasks) {
@@ -82,7 +82,7 @@ function loadTask() {
   startTimer();
 }
 
-// ТАЙМЕР
+// === ТАЙМЕР ===
 function startTimer() {
   clearInterval(timerInterval);
   updateTimerDisplay();
@@ -104,9 +104,10 @@ function updateTimerDisplay() {
   timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// ЗАПИСЬ
+// === ЗАПИСЬ АУДИО ===
 startRecBtn.addEventListener('click', async () => {
   try {
+    // Останавливаем старый поток, если был
     if (currentStream) {
       currentStream.getTracks().forEach(t => t.stop());
     }
@@ -127,6 +128,7 @@ startRecBtn.addEventListener('click', async () => {
         console.warn('Нет аудиоданных для воспроизведения');
         return;
       }
+      // Собираем webm-blob
       lastAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
       const url = URL.createObjectURL(lastAudioBlob);
@@ -139,6 +141,7 @@ startRecBtn.addEventListener('click', async () => {
       stopRecBtn.disabled = true;
       nextTaskBtn.disabled = false;
 
+      // Останавливаем микрофон
       if (currentStream) {
         currentStream.getTracks().forEach(t => t.stop());
         currentStream = null;
@@ -164,7 +167,7 @@ stopRecBtn.addEventListener('click', () => {
   }
 });
 
-// ПРОСЛУШИВАНИЕ
+// === ПРОСЛУШИВАНИЕ WEBM ===
 playRecBtn.addEventListener('click', () => {
   if (!lastAudioBlob) {
     alert('Сначала запишите ответ.');
@@ -178,7 +181,7 @@ playRecBtn.addEventListener('click', () => {
   }
 });
 
-// КОНВЕРТАЦИЯ В MP3 + СКАЧИВАНИЕ
+// === КОНВЕРТАЦИЯ В MP3 + СКАЧИВАНИЕ ===
 downloadRecBtn.addEventListener('click', async () => {
   if (!lastAudioBlob) {
     alert('Нет записи для сохранения.');
@@ -199,7 +202,7 @@ downloadRecBtn.addEventListener('click', async () => {
   }
 });
 
-// Переход к следующему заданию
+// === ПЕРЕХОД К СЛЕДУЮЩЕМУ ЗАДАНИЮ ===
 nextTaskBtn.addEventListener('click', () => {
   currentTaskIndex++;
   loadTask();
@@ -211,9 +214,9 @@ async function convertWebmToMp3(webmBlob) {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-  const channelData = audioBuffer.getChannelData(0); // берём mono
+  const channelData = audioBuffer.getChannelData(0); // mono
   const sampleRate = audioBuffer.sampleRate;
-  const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // 1 канал, 128kbps
+  const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // 1 канал, 128 kbps
   const sampleBlockSize = 1152;
   const mp3Data = [];
 
@@ -227,14 +230,11 @@ async function convertWebmToMp3(webmBlob) {
   for (let i = 0; i < samples.length; i += sampleBlockSize) {
     const sampleChunk = samples.subarray(i, i + sampleBlockSize);
     const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) {
-      mp3Data.push(mp3buf);
-    }
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
   }
+
   const end = mp3Encoder.flush();
-  if (end.length > 0) {
-    mp3Data.push(end);
-  }
+  if (end.length > 0) mp3Data.push(end);
 
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
