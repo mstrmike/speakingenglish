@@ -1,52 +1,44 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="ru">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2685.4">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; -webkit-text-stroke: #000000; min-height: 14.0px}
-    span.s1 {font-kerning: none}
+  <meta charset="UTF-8">
+  <title>Тренажёр устной части ОГЭ</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
+    h1 { text-align: center; }
+    #timer { font-size: 3rem; color: darkred; margin: 10px 0; text-align: center; }
+    button { padding: 8px 16px; margin: 5px; }
+    #task { margin: 15px 0; font-size: 1.2rem; border: 1px solid #ccc; padding: 10px; min-height: 60px; }
+    .controls { margin-top: 10px; }
   </style>
 </head>
 <body>
-<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
-<p class="p1"><span class="s1">&lt;html lang="ru"&gt;</span></p>
-<p class="p1"><span class="s1">&lt;head&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;title&gt;Тренажёр устной части ОГЭ&lt;/title&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;style&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#timer { font-size: 3rem; color: darkred; margin: 10px 0; }</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>button { padding: 8px 16px; margin: 5px; }</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>#task { margin: 15px 0; font-size: 1.2rem; }</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
-<p class="p1"><span class="s1">&lt;body&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;h1&gt;Тренажёр устной части ОГЭ&lt;/h1&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;label for="variantSelect"&gt;Вариант:&lt;/label&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;select id="variantSelect"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;option value="1"&gt;Вариант 1&lt;/option&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;/select&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;button id="startExamBtn"&gt;Начать экзамен&lt;/button&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="task"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;div id="timer"&gt;00:00&lt;/div&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;button id="startRecBtn"&gt;🎤 Запись&lt;/button&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;button id="stopRecBtn" disabled&gt;⏹ Стоп&lt;/button&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;button id="playRecBtn" disabled&gt;▶ Проиграть&lt;/button&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;audio id="player" controls style="display:none;"&gt;&lt;/audio&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;button id="nextTaskBtn" disabled&gt;Далее&lt;/button&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;script src="script.js"&gt;&lt;/script&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
-<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+  <h1>Тренажёр устной части ОГЭ</h1>
+
+  <div>
+    <label for="variantSelect">Вариант:</label>
+    <select id="variantSelect">
+      <option value="1">Вариант 1</option>
+    </select>
+    <button id="startExamBtn">Начать экзамен</button>
+  </div>
+
+  <div id="task"></div>
+  <div id="timer">00:00</div>
+
+  <div class="controls">
+    <button id="startRecBtn" disabled>🎤 Запись</button>
+    <button id="stopRecBtn" disabled>⏹ Стоп</button>
+    <button id="playRecBtn" disabled>▶ Проиграть</button>
+    <button id="downloadRecBtn" disabled>💾 Скачать</button>
+  </div>
+
+  <audio id="player" controls style="display:none; width:100%; margin-top:10px;"></audio>
+
+  <div class="controls">
+    <button id="nextTaskBtn" disabled>Далее</button>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
