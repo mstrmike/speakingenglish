@@ -25,6 +25,7 @@ let timeLeft = 0;
 let mediaRecorder = null;
 let audioChunks = [];
 let lastAudioBlob = null;
+let currentStream = null;
 
 // ЗАГРУЖАЕМ ЗАДАНИЯ ИЗ tasks.json
 fetch('tasks.json')
@@ -64,12 +65,13 @@ function loadTask() {
     return;
   }
 
-  currentTask = tasks[currentVariant === 1 ? currentTaskIndex : currentTaskIndex]; // на будущее — другие варианты
+  currentTask = tasks[currentTaskIndex];
   taskDiv.textContent = currentTask.text;
   timeLeft = currentTask.time;
   player.style.display = 'none';
   lastAudioBlob = null;
 
+  // Кнопки
   startRecBtn.disabled = false;
   stopRecBtn.disabled = true;
   playRecBtn.disabled = true;
@@ -88,7 +90,6 @@ function startTimer() {
     updateTimerDisplay();
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
-      // если идёт запись — остановить
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
@@ -105,13 +106,29 @@ function updateTimerDisplay() {
 // ЗАПИСЬ АУДИО
 startRecBtn.addEventListener('click', async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+    // Останавливаем старый поток, если был
+    if (currentStream) {
+      currentStream.getTracks().forEach(t => t.stop());
+    }
 
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(currentStream);
+    audioChunks = [];
+    lastAudioBlob = null;
+
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) {
+        audioChunks.push(e.data);
+      }
+    };
 
     mediaRecorder.onstop = () => {
+      if (!audioChunks.length) {
+        console.warn('Нет аудиоданных для воспроизведения');
+        return;
+      }
+
+      // Собираем Blob
       lastAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
       const url = URL.createObjectURL(lastAudioBlob);
       player.src = url;
@@ -122,6 +139,12 @@ startRecBtn.addEventListener('click', async () => {
       startRecBtn.disabled = false;
       stopRecBtn.disabled = true;
       nextTaskBtn.disabled = false;
+
+      // Останавливаем поток микрофона
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      }
     };
 
     mediaRecorder.start();
@@ -131,21 +154,32 @@ startRecBtn.addEventListener('click', async () => {
     downloadRecBtn.disabled = true;
     nextTaskBtn.disabled = true;
   } catch (err) {
-    alert('Не удалось получить доступ к микрофону');
+    alert('Не удалось получить доступ к микрофону. Проверьте разрешения.');
     console.error(err);
   }
 });
 
 stopRecBtn.addEventListener('click', () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    clearInterval(timerInterval);
+  try {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+      clearInterval(timerInterval);
+    }
+  } catch (e) {
+    console.error('Ошибка при остановке записи', e);
   }
 });
 
 playRecBtn.addEventListener('click', () => {
+  if (!lastAudioBlob) {
+    alert('Сначала запишите ответ.');
+    return;
+  }
   if (player.src) {
-    player.play();
+    player.play().catch(e => {
+      console.error('Ошибка при воспроизведении', e);
+      alert('Не удалось воспроизвести запись (см. консоль).');
+    });
   }
 });
 
