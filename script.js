@@ -1,78 +1,102 @@
 // ЭКРАНЫ
-const screenSelect = document.getElementById('screen-select');
-const screenExam   = document.getElementById('screen-exam');
-const screenFinal  = document.getElementById('screen-final');
+const screenStart = document.getElementById('screen-start');
+const screenExam  = document.getElementById('screen-exam');
+const screenFinal = document.getElementById('screen-final');
 
-// ЭЛЕМЕНТЫ ВЫБОРА
-const examSelect    = document.getElementById('examSelect');
-const variantSelect = document.getElementById('variantSelect');
-const startExamBtn  = document.getElementById('startExamBtn');
+// ЭЛЕМЕНТЫ СТАРТА
+const lastNameInput  = document.getElementById('lastName');
+const firstNameInput = document.getElementById('firstName');
+const examSelect     = document.getElementById('examSelect');
+const variantSelect  = document.getElementById('variantSelect');
+const startExamBtn   = document.getElementById('startExamBtn');
 
 // ЭЛЕМЕНТЫ ЭКЗАМЕНА
-const examTitle        = document.getElementById('examTitle');
-const phaseLabel       = document.getElementById('phaseLabel');
-const taskDiv          = document.getElementById('task');
-const instructionAudio = document.getElementById('instructionPlayer');
-const timerDiv         = document.getElementById('timer');
-
-const startRecBtn    = document.getElementById('startRecBtn');    // НЕ используем в логике, оставляем отключённой
-const stopRecBtn     = document.getElementById('stopRecBtn');     // НЕ используем
-const playRecBtn     = document.getElementById('playRecBtn');     // НЕ используем
-const downloadRecBtn = document.getElementById('downloadRecBtn'); // НЕ используем
-const player         = document.getElementById('player');
-const continueBtn    = document.getElementById('continueBtn');
+const examTitle   = document.getElementById('examTitle');
+const phaseLabel  = document.getElementById('phaseLabel');
+const taskDiv     = document.getElementById('task');
+const instrAudio  = document.getElementById('instructionPlayer');
+const timerDiv    = document.getElementById('timer');
+const finishBtn   = document.getElementById('finishBtn');
 
 // ЭЛЕМЕНТЫ ФИНАЛА
-const downloadTask1Btn = document.getElementById('downloadTask1Btn');
-const downloadTask2Btn = document.getElementById('downloadTask2Btn');
-const downloadTask3Btn = document.getElementById('downloadTask3Btn');
+const task1PlayDownloadBtn = document.getElementById('task1PlayDownloadBtn');
+const task2PlayDownloadBtn = document.getElementById('task2PlayDownloadBtn');
+const task3PlayDownloadBtn = document.getElementById('task3PlayDownloadBtn');
+const sendTeacherBtn       = document.getElementById('sendTeacherBtn');
+const finalPlayer          = document.getElementById('finalPlayer');
 
 // СОСТОЯНИЕ
-let currentExam    = 'oge';
-let currentVariant = 1;
-let phase          = null;         // 'intro', 'task1_prep', 'task1_rec', 'task2_q1_prep', 'task2_q1_rec', ..., 'task3_prep', 'task3_rec'
-let currentQIndex  = 0;            // индекс вопроса задания 2 (0–5)
+let studentFirstName = '';
+let studentLastName  = '';
+let currentExam      = 'oge';
+let currentVariant   = 1;
+
+let phase        = null; // 'intro', 'task1_prep', 'task1_rec', 'task2_qX_prep', 'task2_qX_rec', 'task3_prep', 'task3_rec'
+let currentQIndex = 0;
 
 // ТАЙМЕР
 let timerInterval = null;
 let timeLeft      = 0;
 
-// АУДИОЗАПИСЬ
+// МИКРОФОН
+let micStream     = null;
 let mediaRecorder = null;
 let audioChunks   = [];
-let currentStream = null;
 
 // ЗАПИСИ
-let task1Blob   = null;    // webm задания 1
-let task2Blobs  = [];      // webm 6 ответов задания 2
-let task3Blob   = null;    // webm задания 3
+let task1Blob  = null;     // webm
+let task2Blobs = [];       // webm[]
+let task3Blob  = null;     // webm
 
-// ПРОСТАЯ КОНФИГУРАЦИЯ ОГЭ, ВАРИАНТ 1 (заглушки)
-const ogeAudio = {
+// КОНФИГ ОГЭ ВАРИАНТА (заглушки)
+const ogeConfig = {
   1: {
-    intro: '', // путь к общей инструкции (позже)
-    task1_text: 'Текст для чтения задания 1 (заглушка).',
-    task1_prep_time: 10,
-    task1_rec_time: 15,
-    task2_questions: ['', '', '', '', '', ''], // пути к аудио вопросов
-    task2_rec_time: 5,
-    task3_text: 'Задание 3 (монолог, заглушка).',
-    task3_prep_time: 10,
-    task3_rec_time: 15
+    introText:  'Инструкция к экзамену (заглушка): вы выполняете 3 задания.',
+    introTime:  5,
+    task1Text:  'Задание 1. Прочитайте текст вслух (заглушка).',
+    task1Prep:  10,
+    task1Rec:   15,
+    task2Info:  'Задание 2. Вы услышите 6 вопросов. После каждого — 5 секунд на ответ (заглушка).',
+    task2PrepGap: 3,
+    task2Rec:   5,
+    task3Text:  'Задание 3. Подготовьте монолог по плану (заглушка).',
+    task3Prep:  10,
+    task3Rec:   15
   }
 };
 
 // ===== НАЧАЛО ЭКЗАМЕНА =====
 
-startExamBtn.addEventListener('click', () => {
+startExamBtn.addEventListener('click', async () => {
+  studentLastName  = (lastNameInput.value || '').trim();
+  studentFirstName = (firstNameInput.value || '').trim();
+
+  if (!studentLastName || !studentFirstName) {
+    alert('Пожалуйста, введите фамилию и имя.');
+    return;
+  }
+
   currentExam    = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10);
 
+  // Запрос микрофона один раз
+  try {
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    alert('Нет доступа к микрофону. Разрешите использование микрофона и попробуйте снова.');
+    console.error(e);
+    return;
+  }
+
   examTitle.textContent = currentExam === 'oge'
     ? `ОГЭ, вариант ${currentVariant}`
-    : `ЕГЭ, вариант ${currentVariant}`;
+    : `ЕГЭ (пока сценарий как у ОГЭ), вариант ${currentVariant}`;
 
-  screenSelect.classList.add('hidden');
+  screenStart.classList.add('hidden');
   screenExam.classList.remove('hidden');
   screenFinal.classList.add('hidden');
 
@@ -85,38 +109,45 @@ function startOgeFlow() {
   task1Blob  = null;
   task2Blobs = [];
   task3Blob  = null;
+  currentQIndex = 0;
+  finalPlayer.src = '';
+
   startIntro();
 }
 
 // 0. Инструкция
 function startIntro() {
+  const cfg = ogeConfig[currentVariant];
   phase = 'intro';
-  phaseLabel.textContent = 'Инструкция к экзамену';
-  taskDiv.textContent    = 'Слушайте инструкцию (заглушка 5 секунд).';
+  phaseLabel.textContent = 'Инструкция';
+  taskDiv.textContent    = cfg.introText;
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
-  timeLeft = 5;
+  timeLeft = cfg.introTime;
   startTimer(startTask1Prep);
 }
 
 // 1. Подготовка к заданию 1
 function startTask1Prep() {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   phase = 'task1_prep';
   phaseLabel.textContent = 'Задание 1: подготовка';
-  taskDiv.textContent    = cfg.task1_text + '\nВремя на подготовку.';
+  taskDiv.textContent    = cfg.task1Text + '\n\nВремя на подготовку.';
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
-  timeLeft = cfg.task1_prep_time;
+  timeLeft = cfg.task1Prep;
   startTimer(startTask1Rec);
 }
 
 // 1. Запись задания 1
 function startTask1Rec() {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   phase = 'task1_rec';
   phaseLabel.textContent = 'Задание 1: запись';
   taskDiv.textContent    = 'Читайте текст вслух. Идёт запись.';
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
   startRecording(blob => {
@@ -124,7 +155,7 @@ function startTask1Rec() {
     startTask2Intro();
   });
 
-  timeLeft = cfg.task1_rec_time;
+  timeLeft = cfg.task1Rec;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -134,10 +165,11 @@ function startTask1Rec() {
 
 // 2. Вступление к заданию 2
 function startTask2Intro() {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   phase = 'task2_intro';
-  phaseLabel.textContent = 'Задание 2: ответы на вопросы';
-  taskDiv.textContent    = 'Сейчас будет 6 вопросов. После каждого – запись ответа.';
+  phaseLabel.textContent = 'Задание 2: вступление';
+  taskDiv.textContent    = cfg.task2Info;
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
   currentQIndex = 0;
@@ -147,28 +179,30 @@ function startTask2Intro() {
 
 // 2.x Подготовка к вопросу №i
 function startTask2QuestionPrep(index) {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   if (index >= 6) {
     startTask3Prep();
     return;
   }
 
   currentQIndex = index;
-  phase = `task2_q${index + 1}_prep`;
-  phaseLabel.textContent = `Задание 2: вопрос ${index + 1}/6 (прослушивание)`;
-  taskDiv.textContent    = `Вопрос ${index + 1} (заглушка 3 секунды), потом запись.`;
+  phase = `task2_q${index+1}_prep`;
+  phaseLabel.textContent = `Задание 2: вопрос ${index+1}/6 (прослушивание)`;
+  taskDiv.textContent    = `Вопрос ${index+1} (заглушка ${cfg.task2PrepGap} секунд), затем запись ответа.`;
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
-  timeLeft = 3;
+  timeLeft = cfg.task2PrepGap;
   startTimer(() => startTask2QuestionRec(index));
 }
 
 // 2.x Запись ответа на вопрос №i
 function startTask2QuestionRec(index) {
-  const cfg = ogeAudio[currentVariant];
-  phase = `task2_q${index + 1}_rec`;
-  phaseLabel.textContent = `Задание 2: ответ на вопрос ${index + 1}/6`;
-  taskDiv.textContent    = `Говорите. Время на ответ ${cfg.task2_rec_time} секунд.`;
+  const cfg = ogeConfig[currentVariant];
+  phase = `task2_q${index+1}_rec`;
+  phaseLabel.textContent = `Задание 2: ответ на вопрос ${index+1}/6`;
+  taskDiv.textContent    = `Говорите. Время на ответ ${cfg.task2Rec} секунд.`;
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
   startRecording(blob => {
@@ -176,7 +210,7 @@ function startTask2QuestionRec(index) {
     startTask2QuestionPrep(index + 1);
   });
 
-  timeLeft = cfg.task2_rec_time;
+  timeLeft = cfg.task2Rec;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -186,22 +220,24 @@ function startTask2QuestionRec(index) {
 
 // 3. Подготовка к заданию 3
 function startTask3Prep() {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   phase = 'task3_prep';
   phaseLabel.textContent = 'Задание 3: подготовка';
-  taskDiv.textContent    = cfg.task3_text + '\nВремя на подготовку.';
+  taskDiv.textContent    = cfg.task3Text + '\n\nВремя на подготовку.';
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
-  timeLeft = cfg.task3_prep_time;
+  timeLeft = cfg.task3Prep;
   startTimer(startTask3Rec);
 }
 
 // 3. Запись задания 3
 function startTask3Rec() {
-  const cfg = ogeAudio[currentVariant];
+  const cfg = ogeConfig[currentVariant];
   phase = 'task3_rec';
   phaseLabel.textContent = 'Задание 3: запись';
   taskDiv.textContent    = 'Говорите монолог. Идёт запись.';
+  instrAudio.style.display = 'none';
   resetExamButtons();
 
   startRecording(blob => {
@@ -209,7 +245,7 @@ function startTask3Rec() {
     finishExam();
   });
 
-  timeLeft = cfg.task3_rec_time;
+  timeLeft = cfg.task3Rec;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -227,14 +263,10 @@ function finishExam() {
   screenExam.classList.add('hidden');
   screenFinal.classList.remove('hidden');
 
-  // включаем кнопки, если записи есть
-  downloadTask1Btn.disabled = !task1Blob;
-  downloadTask2Btn.disabled = task2Blobs.length !== 6;
-  downloadTask3Btn.disabled = !task3Blob;
-
-  // показываем плеер на финальном экране при выборе задания
-  player.style.display = 'block';
-  player.src = '';
+  task1PlayDownloadBtn.disabled = !task1Blob;
+  task2PlayDownloadBtn.disabled = task2Blobs.length !== 6;
+  task3PlayDownloadBtn.disabled = !task3Blob;
+  sendTeacherBtn.disabled       = !(task1Blob && task3Blob && task2Blobs.length === 6);
 }
 
 // ===== ТАЙМЕР =====
@@ -242,6 +274,7 @@ function finishExam() {
 function startTimer(onFinish) {
   clearInterval(timerInterval);
   updateTimerDisplay();
+  finishBtn.disabled = false; // "Закончить задание" активна на любом таймере
   timerInterval = setInterval(() => {
     timeLeft--;
     updateTimerDisplay();
@@ -259,102 +292,74 @@ function updateTimerDisplay() {
 }
 
 function resetExamButtons() {
-  startRecBtn.disabled    = true;
-  stopRecBtn.disabled     = true;
-  playRecBtn.disabled     = true;
-  downloadRecBtn.disabled = true;
-  continueBtn.disabled    = true;
-  player.style.display    = 'none';
-  player.src              = '';
+  clearInterval(timerInterval);
+  timerDiv.textContent = '00:00';
+  finishBtn.disabled   = false; // можно всегда досрочно завершить этап
 }
 
 // ===== ЗАПИСЬ =====
-// onStoppedCallback(blob) – вызывается после сохранения записи
 
-async function startRecording(onStoppedCallback) {
+// Запуск записи; callback получает webm blob после остановки
+async function startRecording(onStopped) {
   try {
-    if (currentStream) {
-      currentStream.getTracks().forEach(t => t.stop());
+    // Переназначаем поток микрофона, если нужно
+    if (!micStream) {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     }
-    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'audio/webm' });
+    mediaRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm' });
     audioChunks   = [];
 
     mediaRecorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) {
-        audioChunks.push(e.data);
-      }
+      if (e.data && e.data.size > 0) audioChunks.push(e.data);
     };
 
     mediaRecorder.onstop = () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-      }
       if (!audioChunks.length) return;
       const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      if (typeof onStoppedCallback === 'function') {
-        onStoppedCallback(blob);
-      }
+      if (typeof onStopped === 'function') onStopped(blob);
     };
 
     mediaRecorder.start();
-    continueBtn.disabled = false; // можно досрочно завершить
-  } catch (err) {
-    alert('Не удалось получить доступ к микрофону.');
-    console.error(err);
+  } catch (e) {
+    alert('Ошибка доступа к микрофону во время записи.');
+    console.error(e);
   }
 }
 
-// "Продолжить" – досрочно завершает текущий этап
-continueBtn.addEventListener('click', () => {
+// "Закончить задание"
+finishBtn.addEventListener('click', () => {
+  // 1) если фаза подготовки – перейти сразу к записи
   if (phase === 'intro') {
-    clearInterval(timerInterval);
     startTask1Prep();
     return;
   }
   if (phase === 'task1_prep') {
-    clearInterval(timerInterval);
     startTask1Rec();
     return;
   }
   if (phase === 'task2_intro') {
-    clearInterval(timerInterval);
     startTask2QuestionPrep(0);
     return;
   }
   if (phase && phase.endsWith('_prep')) {
-    clearInterval(timerInterval);
-    const index = currentQIndex;
-    startTask2QuestionRec(index);
+    // task2_qX_prep
+    startTask2QuestionRec(currentQIndex);
     return;
   }
   if (phase === 'task3_prep') {
-    clearInterval(timerInterval);
     startTask3Rec();
     return;
   }
-  // если идёт запись – досрочно остановить, onstop сам переведёт дальше
+
+  // 2) если идёт запись – досрочно остановить, переход сделает onstop
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     clearInterval(timerInterval);
     mediaRecorder.stop();
   }
 });
 
-// Убираем реальные действия с кнопками, которые не нужны
-stopRecBtn.addEventListener('click', () => {
-  // не используем
-});
-playRecBtn.addEventListener('click', () => {
-  alert('Прослушивание доступно только после экзамена.');
-});
-downloadRecBtn.addEventListener('click', () => {
-  alert('Скачивание доступно после экзамена.');
-});
+// ===== МP3 КОНВЕРТАЦИЯ =====
 
-// ===== MP3 КОНВЕРТАЦИЯ И ПРОСЛУШИВАНИЕ НА ФИНАЛЕ =====
-
-// Вспомогательная функция скачивания
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a   = document.createElement('a');
@@ -365,27 +370,27 @@ function downloadBlob(blob, filename) {
   document.body.removeChild(a);
 }
 
-// webm -> mp3
 async function convertWebmToMp3(webmBlob) {
-  const arrayBuffer   = await webmBlob.arrayBuffer();
-  const audioContext  = new (window.AudioContext || window.webkitAudioContext)();
-  const audioBuffer   = await audioContext.decodeAudioData(arrayBuffer);
-  const channelData   = audioBuffer.getChannelData(0);
-  const sampleRate    = audioBuffer.sampleRate;
-  const mp3Encoder    = new lamejs.Mp3Encoder(1, sampleRate, 128);
-  const sampleBlock   = 1152;
-  const mp3Data       = [];
-  const samples       = new Int16Array(channelData.length);
+  const arrayBuffer  = await webmBlob.arrayBuffer();
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const audioBuffer  = await audioContext.decodeAudioData(arrayBuffer);
+  const channelData  = audioBuffer.getChannelData(0);
+  const sampleRate   = audioBuffer.sampleRate;
 
+  const samples = new Int16Array(channelData.length);
   for (let i = 0; i < channelData.length; i++) {
     let s = Math.max(-1, Math.min(1, channelData[i]));
     samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
   }
 
+  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
+  const sampleBlock = 1152;
+  const mp3Data     = [];
+
   for (let i = 0; i < samples.length; i += sampleBlock) {
-    const sampleChunk = samples.subarray(i, i + sampleBlock);
-    const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+    const chunk = samples.subarray(i, i + sampleBlock);
+    const buf   = mp3Encoder.encodeBuffer(chunk);
+    if (buf.length > 0) mp3Data.push(buf);
   }
   const end = mp3Encoder.flush();
   if (end.length > 0) mp3Data.push(end);
@@ -393,7 +398,6 @@ async function convertWebmToMp3(webmBlob) {
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
 
-// несколько webm подряд -> один mp3 (задание 2)
 async function convertMultipleWebmToMp3(webmBlobs) {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const buffers      = [];
@@ -402,68 +406,4 @@ async function convertMultipleWebmToMp3(webmBlobs) {
 
   for (const blob of webmBlobs) {
     const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    buffers.push(audioBuffer);
-    totalLength += audioBuffer.length;
-    sampleRate = audioBuffer.sampleRate;
-  }
-
-  const merged = new Float32Array(totalLength);
-  let offset = 0;
-  for (const buf of buffers) {
-    merged.set(buf.getChannelData(0), offset);
-    offset += buf.length;
-  }
-
-  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
-  const sampleBlock = 1152;
-  const mp3Data     = [];
-  const samples     = new Int16Array(merged.length);
-
-  for (let i = 0; i < merged.length; i++) {
-    let s = Math.max(-1, Math.min(1, merged[i]));
-    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-
-  for (let i = 0; i < samples.length; i += sampleBlock) {
-    const chunk = samples.subarray(i, i + sampleBlock);
-    const mp3buf = mp3Encoder.encodeBuffer(chunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
-  }
-  const end = mp3Encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
-}
-
-// Финальные кнопки: прослушивание + скачивание MP3
-
-downloadTask1Btn.addEventListener('click', async () => {
-  if (!task1Blob) return;
-  const mp3 = await convertWebmToMp3(task1Blob);
-  const url = URL.createObjectURL(mp3);
-  player.src = url;
-  player.play().catch(console.error);
-  downloadBlob(mp3, 'oge_task1.mp3');
-});
-
-downloadTask2Btn.addEventListener('click', async () => {
-  if (task2Blobs.length !== 6) {
-    alert('Записаны не все 6 ответов задания 2.');
-    return;
-  }
-  const mp3 = await convertMultipleWebmToMp3(task2Blobs);
-  const url = URL.createObjectURL(mp3);
-  player.src = url;
-  player.play().catch(console.error);
-  downloadBlob(mp3, 'oge_task2_all.mp3');
-});
-
-downloadTask3Btn.addEventListener('click', async () => {
-  if (!task3Blob) return;
-  const mp3 = await convertWebmToMp3(task3Blob);
-  const url = URL.createObjectURL(mp3);
-  player.src = url;
-  player.play().catch(console.error);
-  downloadBlob(mp3, 'oge_task3.mp3');
-});
+    const
