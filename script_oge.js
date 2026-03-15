@@ -33,20 +33,40 @@ class OgeEngine {
     }
   }
 
-  // beep
-  playBeepThen(callback) {
-    if (!this.beepPlayer) {
-      callback && callback();
+  // "Start speaking please" -> beep -> callback
+  playStartSpeakingThenBeep(callback) {
+    const phrase = this.startSpeakingPlayer;
+    const beep   = this.beepPlayer;
+
+    const playBeep = () => {
+      if (!beep) {
+        callback && callback();
+        return;
+      }
+      beep.currentTime = 0;
+      beep.onended = () => {
+        beep.onended = null;
+        callback && callback();
+      };
+      beep.play().catch(err => {
+        console.error(err);
+        callback && callback();
+      });
+    };
+
+    if (!phrase) {
+      playBeep();
       return;
     }
-    this.beepPlayer.currentTime = 0;
-    this.beepPlayer.onended = () => {
-      this.beepPlayer.onended = null;
-      callback && callback();
+
+    phrase.currentTime = 0;
+    phrase.onended = () => {
+      phrase.onended = null;
+      playBeep();
     };
-    this.beepPlayer.play().catch(err => {
+    phrase.play().catch(err => {
       console.error(err);
-      callback && callback();
+      playBeep();
     });
   }
 
@@ -108,7 +128,7 @@ class OgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.playBeepThen(() => this.startTask1Rec());
+        this.playStartSpeakingThenBeep(() => this.startTask1Rec());
       }
     }, 1000);
   }
@@ -188,7 +208,7 @@ class OgeEngine {
       this.questionPlayer.style.display = 'block';
       this.questionPlayer.onended = () => {
         this.questionPlayer.style.display = 'none';
-        this.playBeepThen(() => this.startTask2QuestionRec(index));
+        this.playStartSpeakingThenBeep(() => this.startTask2QuestionRec(index));
       };
       this.questionPlayer.play().catch(err => {
         console.error(err);
@@ -210,7 +230,7 @@ class OgeEngine {
       this.timeLeft--;
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.playBeepThen(() => this.startTask2QuestionRec(index));
+        this.playStartSpeakingThenBeep(() => this.startTask2QuestionRec(index));
       }
     }, 1000);
   }
@@ -262,7 +282,7 @@ class OgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.playBeepThen(() => this.startTask3Rec());
+        this.playStartSpeakingThenBeep(() => this.startTask3Rec());
       }
     }, 1000);
   }
@@ -316,7 +336,7 @@ class OgeEngine {
       case 'intro':
         this.resetTimer(); this.startTask1Prep(); break;
       case 'task1_prep':
-        this.resetTimer(); this.playBeepThen(() => this.startTask1Rec()); break;
+        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask1Rec()); break;
       case 'task1_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -329,7 +349,7 @@ class OgeEngine {
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.playBeepThen(() => this.startTask2QuestionRec(this.questionIndex));
+        this.playStartSpeakingThenBeep(() => this.startTask2QuestionRec(this.questionIndex));
         break;
       case 'task2_q_rec':
         this.resetTimer();
@@ -337,7 +357,7 @@ class OgeEngine {
         break;
 
       case 'task3_prep':
-        this.resetTimer(); this.playBeepThen(() => this.startTask3Rec()); break;
+        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask3Rec()); break;
       case 'task3_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -345,7 +365,7 @@ class OgeEngine {
     }
   }
 
-  // mp3 конвертация (как раньше)
+  // mp3 конвертация
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
