@@ -12,12 +12,12 @@ const variantSelect  = document.getElementById('variantSelect');
 const startExamBtn   = document.getElementById('startExamBtn');
 
 // ЭКЗАМЕН
-const examTitle     = document.getElementById('examTitle');
-const phaseLabel    = document.getElementById('phaseLabel');
-const taskDiv       = document.getElementById('task');
-const timerDiv      = document.getElementById('timer');
-const actionBtn     = document.getElementById('actionBtn');
-const questionPlayer = document.getElementById('questionPlayer'); // <audio> для вопросов
+const examTitle      = document.getElementById('examTitle');
+const phaseLabel     = document.getElementById('phaseLabel');
+const taskDiv        = document.getElementById('task');
+const timerDiv       = document.getElementById('timer');
+const actionBtn      = document.getElementById('actionBtn');
+const questionPlayer = document.getElementById('questionPlayer');
 
 // ФИНАЛ
 const playDownload1Btn = document.getElementById('playDownload1Btn');
@@ -32,6 +32,7 @@ let studentFirstName = '';
 let studentClass     = '';
 let currentExam      = 'oge';
 let currentVariant   = 1;
+let config           = null; // из TASK_BANK
 
 // фаза: 'intro', 'task1_prep', 'task1_rec',
 //       'task2_intro', 'task2_q_prep', 'task2_q_rec',
@@ -39,7 +40,7 @@ let currentVariant   = 1;
 let phase         = null;
 let timer         = null;
 let timeLeft      = 0;
-let questionIndex = 0; // 0–5 для задания 2
+let questionIndex = 0;
 
 // МИКРОФОН / ЗАПИСЬ
 let micStream     = null;
@@ -48,41 +49,29 @@ let audioChunks   = [];
 
 // ЗАПИСИ
 let task1Blob  = null;
-let task2Blobs = [];  // 6 webm, по одному на ответ
+let task2Blobs = [];  // 6 webm
 let task3Blob  = null;
 
-// КОНФИГ ЗАДАНИЙ (заглушки, пути к аудио заменишь на реальные)
-const config = {
-  introText: 'Инструкция к экзамену (заглушка). Вы выполните 3 задания.',
-  introTime: 5,
+// ===== ИНИЦИАЛИЗАЦИЯ ВАРИАНТОВ =====
 
-  task1: {
-    text: 'Задание 1. Прочитайте текст вслух (заглушка).',
-    prepTime: 10,
-    recTime:  20
-  },
-  task2: {
-    infoText: 'Задание 2. Вы услышите 6 вопросов. После каждого — время на ответ.',
-    questionText: 'Вопрос {n}.', // текст на экране
-    prepGap: 3,   // запасная пауза, если аудио не проигралось
-    recTime:  15, // запись ответа (сек)
-    questionAudio: [
-      'audio/oge1_q1.mp3',
-      'audio/oge1_q2.mp3',
-      'audio/oge1_q3.mp3',
-      'audio/oge1_q4.mp3',
-      'audio/oge1_q5.mp3',
-      'audio/oge1_q6.mp3'
-    ]
-  },
-  task3: {
-    text: 'Задание 3. Монолог по плану (заглушка).',
-    prepTime: 15,
-    recTime:  30
-  }
-};
+function populateVariants() {
+  const examKey = examSelect.value; // 'oge' | 'ege'
+  const examBank = TASK_BANK[examKey] || {};
+  variantSelect.innerHTML = '';
+  Object.keys(examBank).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = `Вариант ${v}`;
+    variantSelect.appendChild(opt);
+  });
+}
 
-// ===== НАЧАЛО =====
+examSelect.addEventListener('change', populateVariants);
+
+// При загрузке страницы – заполнить варианты для текущего экзамена
+populateVariants();
+
+// ===== НАЧАЛО ЭКЗАМЕНА =====
 
 startExamBtn.addEventListener('click', async () => {
   studentLastName  = (lastNameInput.value  || '').trim();
@@ -96,6 +85,14 @@ startExamBtn.addEventListener('click', async () => {
 
   currentExam    = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10);
+
+  // загрузка конфига из банка
+  const examBank = TASK_BANK[currentExam];
+  if (!examBank || !examBank[currentVariant]) {
+    alert('Для выбранного экзамена и варианта нет заданий.');
+    return;
+  }
+  config = examBank[currentVariant];
 
   // запрос микрофона
   try {
@@ -232,7 +229,6 @@ function startTask2QuestionPrep(index) {
   actionBtn.disabled = false;
   actionBtn.textContent = 'Сразу перейти к записи';
 
-  // скрываем текстовый таймер (в этот момент ученик слушает вопрос)
   resetTimer();
   timerDiv.textContent = '';
 
@@ -256,7 +252,6 @@ function startTask2QuestionPrep(index) {
   }
 }
 
-// резервная пауза, если аудио не проигралось
 function startQuestionPrepFallback(index) {
   questionPlayer.pause();
   questionPlayer.currentTime = 0;
@@ -394,7 +389,6 @@ actionBtn.addEventListener('click', () => {
       startTask2QuestionPrep(0);
       break;
     case 'task2_q_prep':
-      // прервать аудио и сразу перейти к записи
       resetTimer();
       questionPlayer.pause();
       questionPlayer.currentTime = 0;
