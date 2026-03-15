@@ -28,10 +28,9 @@ const downloadTask2Btn = document.getElementById('downloadTask2Btn');
 const downloadTask3Btn = document.getElementById('downloadTask3Btn');
 
 // СОСТОЯНИЕ
-let currentExam    = 'oge'; // 'oge' | 'ege'
+let currentExam    = 'oge';
 let currentVariant = 1;
-
-let phase = null; // текущая фаза сценария
+let phase = null;
 
 // ТАЙМЕР
 let timerInterval = null;
@@ -40,37 +39,32 @@ let timeLeft = 0;
 // АУДИОЗАПИСЬ
 let mediaRecorder = null;
 let audioChunks   = [];
-let lastAudioBlob = null;   // последняя webm-запись
+let lastAudioBlob = null;
 let currentStream = null;
 
-// ХРАНЕНИЕ ЗАПИСЕЙ
-let task1Blob  = null;    // webm задания 1
-let task2Blobs = [];      // webm 6 ответов задания 2
-let task3Blob  = null;    // webm задания 3
+// ЗАПИСИ
+let task1Blob  = null;
+let task2Blobs = [];
+let task3Blob  = null;
 
-// ПОКА ЗАГОТОВКА ПОД АУДИО – здесь позже подставите реальные файлы
-// Для каждого варианта можно будет задать свои пути
+// ПРОСТАЯ КОНФИГУРАЦИЯ ОГЭ ВАРИАНТ 1
 const ogeAudio = {
   1: {
-    intro: '',          // 'audio/oge1_intro.mp3'
-    task1_text: 'Здесь будет текст для чтения задания 1.',
-    task1_prep_time: 60,   // реальное время подготовки
-    task1_rec_time: 120,   // реальное время записи
-
-    // 6 вопросов задания 2
-    task2_questions: ['', '', '', '', '', ''], // 'audio/oge1_q1.mp3', ...
-
-    task2_rec_time: 40,    // 40 секунд на каждый ответ
-
-    task3_text: 'Здесь будет задание 3 (монолог по плану).',
-    task3_prep_time: 90,
-    task3_rec_time: 180
+    intro: '',
+    task1_text: 'Текст для чтения задания 1 (заглушка).',
+    task1_prep_time: 10,
+    task1_rec_time: 15,
+    task2_questions: ['', '', '', '', '', ''],
+    task2_rec_time: 5,
+    task3_text: 'Задание 3 (монолог, заглушка).',
+    task3_prep_time: 10,
+    task3_rec_time: 15
   }
 };
 
-// === ИНИЦИАЛИЗАЦИЯ ===
+// НАЧАЛО ЭКЗАМЕНА
 startExamBtn.addEventListener('click', () => {
-  currentExam = examSelect.value; // 'oge' или 'ege'
+  currentExam = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10);
 
   examTitle.textContent = currentExam === 'oge'
@@ -81,70 +75,51 @@ startExamBtn.addEventListener('click', () => {
   screenExam.classList.remove('hidden');
   screenFinal.classList.add('hidden');
 
-  if (currentExam === 'oge') {
-    startOgeFlow();
-  } else {
-    // Позже можно добавить сценарий ЕГЭ
-    alert('Пока реализован только сценарий ОГЭ.');
-    startOgeFlow();
-  }
+  startOgeFlow();
 });
 
-// === СЦЕНАРИЙ ОГЭ ===
+// СЦЕНАРИЙ ОГЭ
 function startOgeFlow() {
-  // сбрасываем записи
-  task1Blob  = null;
+  task1Blob = null;
   task2Blobs = [];
-  task3Blob  = null;
+  task3Blob = null;
 
-  // фаза: общая инструкция
-  phaseLabel.textContent = 'Инструкция к экзамену';
+  startIntro();
+}
+
+function startIntro() {
   phase = 'intro';
-  player.style.display = 'none';
+  phaseLabel.textContent = 'Инструкция к экзамену';
+  taskDiv.textContent = 'Слушайте инструкцию (пока заглушка 5 секунд).';
   resetButtons();
+  player.style.display = 'none';
 
-  const config = ogeAudio[currentVariant];
-  taskDiv.textContent = 'Слушайте инструкцию. Затем экзамен начнётся автоматически.';
-
-  if (config.intro) {
-    instructionAudio.src = config.intro;
-    instructionAudio.onended = () => {
-      startTask1Prep();
-    };
-    instructionAudio.play().catch(e => console.error(e));
-  } else {
-    // пока нет файла – имитируем 5 сек ожидания
-    instructionAudio.removeAttribute('src');
-    timeLeft = 5;
-    startTimer(() => startTask1Prep());
-  }
+  timeLeft = 5;
+  startTimer(startTask1Prep);
 }
 
 function startTask1Prep() {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   phase = 'task1_prep';
-  phaseLabel.textContent = 'Задание 1: подготовка к чтению';
-  taskDiv.textContent = config.task1_text + '\n(Сейчас – время на подготовку.)';
-  player.style.display = 'none';
+  phaseLabel.textContent = 'Задание 1: подготовка';
+  taskDiv.textContent = cfg.task1_text + '\nВремя на подготовку.';
   resetButtons();
+  player.style.display = 'none';
 
-  timeLeft = config.task1_prep_time || 30;
-  startTimer(() => startTask1Rec());
+  timeLeft = cfg.task1_prep_time;
+  startTimer(startTask1Rec);
 }
 
 function startTask1Rec() {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   phase = 'task1_rec';
-  phaseLabel.textContent = 'Задание 1: запись ответа';
-  taskDiv.textContent = 'Читайте текст вслух. Запись идёт.';
-
-  player.style.display = 'none';
+  phaseLabel.textContent = 'Задание 1: запись';
+  taskDiv.textContent = 'Читайте текст вслух. Идёт запись.';
   resetButtons();
+  player.style.display = 'none';
 
-  // Автостарт записи
   startRecording();
-
-  timeLeft = config.task1_rec_time || 60;
+  timeLeft = cfg.task1_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -154,104 +129,73 @@ function startTask1Rec() {
 }
 
 function startTask2Intro() {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   phase = 'task2_intro';
   phaseLabel.textContent = 'Задание 2: ответы на вопросы';
-  taskDiv.textContent = 'Сейчас вы услышите 6 вопросов. После каждого вопроса прозвучит сигнал и начнётся запись на 40 секунд.';
-  player.style.display = 'none';
+  taskDiv.textContent = 'Сейчас будет 6 вопросов (заглушка).';
   resetButtons();
+  player.style.display = 'none';
 
-  // Небольшая пауза, потом первый вопрос
   timeLeft = 5;
-  startTimer(() => {
-    startTask2Question(0); // индекс 0..5
-  });
+  startTimer(() => startTask2Question(0));
 }
 
 function startTask2Question(index) {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   if (index >= 6) {
-    // все 6 вопросов пройдены
     startTask3Prep();
     return;
   }
 
   phase = `task2_q${index+1}`;
-  phaseLabel.textContent = `Задание 2: вопрос ${index + 1}/6`;
-  taskDiv.textContent = `Вопрос ${index + 1}. Слушайте вопрос, затем начнётся запись.`;
-
-  player.style.display = 'none';
+  phaseLabel.textContent = `Задание 2: вопрос ${index+1}/6`;
+  taskDiv.textContent = `Вопрос ${index+1} (заглушка 3 секунды), потом запись.`;
   resetButtons();
+  player.style.display = 'none';
 
-  // Проигрываем аудиовопрос, если есть
-  const qSrc = config.task2_questions[index];
-  if (qSrc) {
-    instructionAudio.src = qSrc;
-    instructionAudio.onended = () => {
-      startTask2AnswerRecording(index);
-    };
-    instructionAudio.play().catch(e => console.error(e));
-  } else {
-    // Пока нет файлов – имитируем вопрос 3 сек, потом запись
-    instructionAudio.removeAttribute('src');
-    timeLeft = 3;
-    startTimer(() => startTask2AnswerRecording(index));
-  }
+  timeLeft = 3;
+  startTimer(() => startTask2AnswerRecording(index));
 }
 
 function startTask2AnswerRecording(index) {
-  const config = ogeAudio[currentVariant];
-  phaseLabel.textContent = `Задание 2: ответ на вопрос ${index + 1}`;
-  taskDiv.textContent = `Говорите. Время на ответ – ${config.task2_rec_time || 40} секунд.`;
-
-  player.style.display = 'none';
+  const cfg = ogeAudio[currentVariant];
+  phaseLabel.textContent = `Задание 2: ответ на вопрос ${index+1}`;
+  taskDiv.textContent = `Говорите. Время на ответ ${cfg.task2_rec_time} секунд.`;
   resetButtons();
+  player.style.display = 'none';
 
   startRecording();
-
-  // фиксированное время записи, без «Продолжить»
-  continueBtn.disabled = true;
-
-  timeLeft = config.task2_rec_time || 40;
+  timeLeft = cfg.task2_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
-    // после остановки запись попадёт в task2Blobs
-    // запускаем следующий вопрос
     startTask2Question(index + 1);
   });
 }
 
 function startTask3Prep() {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   phase = 'task3_prep';
-  phaseLabel.textContent = 'Задание 3: подготовка к монологу';
-  taskDiv.textContent = config.task3_text + '\n(Сейчас – время на подготовку.)';
-
-  player.style.display = 'none';
+  phaseLabel.textContent = 'Задание 3: подготовка';
+  taskDiv.textContent = cfg.task3_text + '\nВремя на подготовку.';
   resetButtons();
+  player.style.display = 'none';
 
-  timeLeft = config.task3_prep_time || 60;
-  startTimer(() => startTask3Rec());
+  timeLeft = cfg.task3_prep_time;
+  startTimer(startTask3Rec);
 }
 
 function startTask3Rec() {
-  const config = ogeAudio[currentVariant];
+  const cfg = ogeAudio[currentVariant];
   phase = 'task3_rec';
-  phaseLabel.textContent = 'Задание 3: запись ответа';
-  taskDiv.textContent = 'Говорите монолог. Запись идёт.';
-
-  player.style.display = 'none';
+  phaseLabel.textContent = 'Задание 3: запись';
+  taskDiv.textContent = 'Говорите монолог. Идёт запись.';
   resetButtons();
+  player.style.display = 'none';
 
-  // автостарт записи
   startRecording();
-
-  // можно завершить досрочно
-  continueBtn.disabled = false;
-
-  timeLeft = config.task3_rec_time || 120;
+  timeLeft = cfg.task3_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
@@ -268,13 +212,13 @@ function finishExam() {
   screenExam.classList.add('hidden');
   screenFinal.classList.remove('hidden');
 
-  // Активируем кнопки скачивания, если есть записи
+  // пока просто включаем кнопки, но не вешаем скачивание
   downloadTask1Btn.disabled = !task1Blob;
   downloadTask2Btn.disabled = task2Blobs.length !== 6;
   downloadTask3Btn.disabled = !task3Blob;
 }
 
-// === ТАЙМЕР С КОЛБЭКОМ ===
+// ТАЙМЕР
 function startTimer(onFinish) {
   clearInterval(timerInterval);
   updateTimerDisplay();
@@ -305,7 +249,7 @@ function resetButtons() {
   lastAudioBlob           = null;
 }
 
-// === ЗАПИСЬ (общая функция автостарта) ===
+// ЗАПИСЬ
 async function startRecording() {
   try {
     if (currentStream) {
@@ -324,7 +268,6 @@ async function startRecording() {
 
     mediaRecorder.onstop = () => {
       if (!audioChunks.length) return;
-
       lastAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
       const url = URL.createObjectURL(lastAudioBlob);
@@ -333,16 +276,13 @@ async function startRecording() {
 
       playRecBtn.disabled     = false;
       downloadRecBtn.disabled = false;
-      startRecBtn.disabled    = false;
       stopRecBtn.disabled     = true;
-      continueBtn.disabled    = false;
 
       if (currentStream) {
         currentStream.getTracks().forEach(t => t.stop());
         currentStream = null;
       }
 
-      // сохраняем blob в нужное место
       if (phase === 'task1_rec') {
         task1Blob = lastAudioBlob;
       } else if (phase.startsWith('task2_q')) {
@@ -364,7 +304,6 @@ async function startRecording() {
   }
 }
 
-// РУЧНОЕ УПРАВЛЕНИЕ
 stopRecBtn.addEventListener('click', () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
@@ -384,111 +323,3 @@ playRecBtn.addEventListener('click', () => {
   }
   player.play().catch(e => console.error(e));
 });
-
-// === КОНВЕРТАЦИЯ В MP3 ДЛЯ ФИНАЛА ===
-downloadTask1Btn.addEventListener('click', async () => {
-  if (!task1Blob) return;
-  const mp3Blob = await convertWebmToMp3(task1Blob);
-  downloadBlob(mp3Blob, 'oge_task1.mp3');
-});
-
-downloadTask2Btn.addEventListener('click', async () => {
-  if (task2Blobs.length !== 6) return;
-  // склеиваем 6 webm в один mp3
-  const mp3Blob = await convertMultipleWebmToMp3(task2Blobs);
-  downloadBlob(mp3Blob, 'oge_task2_all.mp3');
-});
-
-downloadTask3Btn.addEventListener('click', async () => {
-  if (!task3Blob) return;
-  const mp3Blob = await convertWebmToMp3(task3Blob);
-  downloadBlob(mp3Blob, 'oge_task3.mp3');
-});
-
-// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ MP3 ===
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-}
-
-// одна запись webm -> mp3
-async function convertWebmToMp3(webmBlob) {
-  const arrayBuffer = await webmBlob.arrayBuffer();
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-  const channelData = audioBuffer.getChannelData(0); // mono
-  const sampleRate  = audioBuffer.sampleRate;
-  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
-  const sampleBlockSize = 1152;
-  const mp3Data = [];
-
-  const samples = new Int16Array(channelData.length);
-  for (let i = 0; i < channelData.length; i++) {
-    let s = Math.max(-1, Math.min(1, channelData[i]));
-    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-
-  for (let i = 0; i < samples.length; i += sampleBlockSize) {
-    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
-    const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
-  }
-
-  const end = mp3Encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
-}
-
-// несколько webm подряд -> один mp3
-async function convertMultipleWebmToMp3(webmBlobs) {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-  // Декодируем все webm в AudioBuffer и склеиваем в один Float32Array
-  const buffers = [];
-  let totalLength = 0;
-  let sampleRate = 44100;
-
-  for (const blob of webmBlobs) {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    buffers.push(audioBuffer);
-    totalLength += audioBuffer.length;
-    sampleRate = audioBuffer.sampleRate;
-  }
-
-  const merged = new Float32Array(totalLength);
-  let offset = 0;
-  for (const buf of buffers) {
-    merged.set(buf.getChannelData(0), offset);
-    offset += buf.length;
-  }
-
-  // Кодируем merged в mp3
-  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
-  const sampleBlockSize = 1152;
-  const mp3Data = [];
-
-  const samples = new Int16Array(merged.length);
-  for (let i = 0; i < merged.length; i++) {
-    let s = Math.max(-1, Math.min(1, merged[i]));
-    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-
-  for (let i = 0; i < samples.length; i += sampleBlockSize) {
-    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
-    const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
-  }
-
-  const end = mp3Encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
-}
