@@ -2,45 +2,96 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тренажёр устной части ОГЭ</title>
+  <title>Тренажёр устной части ОГЭ/ЕГЭ</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
-    h1 { text-align: center; }
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; }
+    h1, h2 { text-align: center; }
     #timer { font-size: 3rem; color: darkred; margin: 10px 0; text-align: center; }
     button { padding: 8px 16px; margin: 5px; }
     #task { margin: 15px 0; font-size: 1.2rem; border: 1px solid #ccc; padding: 10px; min-height: 60px; }
-    .controls { margin-top: 10px; }
+    .hidden { display: none; }
+    .controls { margin-top: 10px; text-align: center; }
+    .center { text-align: center; }
   </style>
-  <!-- LameJS для конвертации в MP3 -->
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
-  <h1>Тренажёр устной части ОГЭ</h1>
-
-  <div>
-    <label for="variantSelect">Вариант:</label>
-    <select id="variantSelect">
-      <option value="1">Вариант 1</option>
-    </select>
-    <button id="startExamBtn">Начать экзамен</button>
+  <!-- ЭКРАН 1: ВЫБОР ЭКЗАМЕНА И ВАРИАНТА -->
+  <div id="screen-select">
+    <h1>Тренажёр устной части ОГЭ/ЕГЭ</h1>
+    <div class="center">
+      <label>
+        Экзамен:
+        <select id="examSelect">
+          <option value="oge">ОГЭ</option>
+          <option value="ege">ЕГЭ</option>
+        </select>
+      </label>
+    </div>
+    <div class="center" style="margin-top:10px;">
+      <label>
+        Вариант:
+        <select id="variantSelect">
+          <option value="1">Вариант 1</option>
+          <!-- позже добавим 2,3,... -->
+        </select>
+      </label>
+    </div>
+    <div class="center" style="margin-top:20px;">
+      <button id="startExamBtn">Начать экзамен</button>
+    </div>
   </div>
 
-  <div id="task"></div>
-  <div id="timer">00:00</div>
+  <!-- ЭКРАН 2: ЭКЗАМЕН -->
+  <div id="screen-exam" class="hidden">
+    <h2 id="examTitle"></h2>
+    <div id="phaseLabel" class="center"></div>
 
-  <div class="controls">
-    <button id="startRecBtn" disabled>🎤 Запись</button>
-    <button id="stopRecBtn" disabled>⏹ Стоп</button>
-    <button id="playRecBtn" disabled>▶ Проиграть</button>
-    <button id="downloadRecBtn" disabled>💾 Скачать MP3</button>
+    <!-- блок инструкции / текста задания -->
+    <div id="task"></div>
+
+    <!-- аудио-инструкции / вопросы -->
+    <div class="center">
+      <audio id="instructionPlayer" controls style="width:100%;"></audio>
+    </div>
+
+    <!-- таймер -->
+    <div id="timer">00:00</div>
+
+    <!-- управление записью -->
+    <div class="controls">
+      <button id="startRecBtn" disabled>🎤 Запись</button>
+      <button id="stopRecBtn" disabled>⏹ Стоп</button>
+      <button id="playRecBtn" disabled>▶ Проиграть (webm)</button>
+      <button id="downloadRecBtn" disabled>💾 Скачать MP3</button>
+    </div>
+
+    <audio id="player" controls style="display:none; width:100%; margin-top:10px;"></audio>
+
+    <div class="controls">
+      <button id="continueBtn" disabled>Продолжить</button>
+    </div>
   </div>
 
-  <audio id="player" controls style="display:none; width:100%; margin-top:10px;"></audio>
-
-  <div class="controls">
-    <button id="nextTaskBtn" disabled>Далее</button>
+  <!-- ЭКРАН 3: ФИНАЛ -->
+  <div id="screen-final" class="hidden">
+    <h2>Экзамен завершён</h2>
+    <div class="center">
+      <p>Скачайте записи заданий:</p>
+      <div>
+        <button id="downloadTask1Btn" disabled>Задание 1 (MP3)</button>
+      </div>
+      <div>
+        <button id="downloadTask2Btn" disabled>Задание 2 (MP3)</button>
+      </div>
+      <div>
+        <button id="downloadTask3Btn" disabled>Задание 3 (MP3)</button>
+      </div>
+      <!-- позже можно добавить "Скачать всё архивом" -->
+    </div>
   </div>
 
   <script src="script.js"></script>
 </body>
 </html>
+
