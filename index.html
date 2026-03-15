@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тренажёр устной части (ОГЭ/ЕГЭ)</title>
+  <title>Тренажёр устной части ОГЭ/ЕГЭ</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
     h1, h2 { text-align: center; }
@@ -17,9 +17,10 @@
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
-  <!-- ЭКРАН 1: СТАРТ -->
+  <!-- ЭКРАН СТАРТА -->
   <div id="screen-start">
     <h1>Тренажёр устной части</h1>
+
     <div class="center">
       <label>
         Фамилия:
@@ -38,6 +39,7 @@
         <input type="text" id="className" placeholder="9А">
       </label>
     </div>
+
     <div class="center" style="margin-top:10px;">
       <label>
         Экзамен:
@@ -47,23 +49,20 @@
         </select>
       </label>
     </div>
+
     <div class="center" style="margin-top:10px;">
       <label>
         Вариант:
-        <select id="variantSelect">
-          <!-- заполняется из TASK_BANK -->
-        </select>
+        <select id="variantSelect"></select>
       </label>
     </div>
+
     <div class="center" style="margin-top:20px;">
       <button id="startExamBtn">Начать</button>
     </div>
-    <p class="center" style="color:#666; margin-top:10px;">
-      Перед началом тренажёр запросит доступ к микрофону.
-    </p>
   </div>
 
-  <!-- ЭКРАН 2: ЭКЗАМЕН -->
+  <!-- ЭКРАН ЭКЗАМЕНА -->
   <div id="screen-exam" class="hidden">
     <h2 id="examTitle"></h2>
     <div id="phaseLabel" class="center"></div>
@@ -81,34 +80,38 @@
     </div>
   </div>
 
-  <!-- ЭКРАН 3: ФИНАЛ -->
+  <!-- ЭКРАН ФИНАЛА -->
   <div id="screen-final" class="hidden">
     <h2>Экзамен завершён</h2>
+
     <div class="center">
-      <p>Прослушайте и скачайте записи:</p>
+      <p>Сохраните и при необходимости прослушайте записи:</p>
       <div>
         <button id="playDownload1Btn" disabled>Задание 1</button>
       </div>
       <div>
-        <button id="playDownload2Btn" disabled>Задание 2 (6 ответов)</button>
+        <button id="playDownload2Btn" disabled>Задание 2</button>
       </div>
       <div>
         <button id="playDownload3Btn" disabled>Задание 3</button>
       </div>
+      <div>
+        <button id="playDownload4Btn" disabled>Задание 4 (монолог)</button>
+      </div>
     </div>
+
     <div class="center" style="margin-top:20px;">
       <audio id="finalPlayer" controls style="width:100%;"></audio>
     </div>
+
     <div class="center" style="margin-top:20px;">
       <button id="backBtn">Вернуться на старт</button>
     </div>
   </div>
 
   <script src="tasks.js"></script>
+  <script src="script_oge.js"></script>
+  <script src="script_ege.js"></script>
   <script src="script.js"></script>
-  <script src="tasks.js"></script>
-<script src="script_oge.js"></script>
-<script src="script_ege.js"></script>
-<script src="script.js"></script>
 </body>
 </html>
