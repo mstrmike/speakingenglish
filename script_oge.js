@@ -33,6 +33,23 @@ class OgeEngine {
     }
   }
 
+  // beep
+  playBeepThen(callback) {
+    if (!this.beepPlayer) {
+      callback && callback();
+      return;
+    }
+    this.beepPlayer.currentTime = 0;
+    this.beepPlayer.onended = () => {
+      this.beepPlayer.onended = null;
+      callback && callback();
+    };
+    this.beepPlayer.play().catch(err => {
+      console.error(err);
+      callback && callback();
+    });
+  }
+
   // запись
   async startRecording(onStopped) {
     try {
@@ -91,7 +108,7 @@ class OgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask1Rec();
+        this.playBeepThen(() => this.startTask1Rec());
       }
     }, 1000);
   }
@@ -171,7 +188,7 @@ class OgeEngine {
       this.questionPlayer.style.display = 'block';
       this.questionPlayer.onended = () => {
         this.questionPlayer.style.display = 'none';
-        this.startTask2QuestionRec(index);
+        this.playBeepThen(() => this.startTask2QuestionRec(index));
       };
       this.questionPlayer.play().catch(err => {
         console.error(err);
@@ -193,7 +210,7 @@ class OgeEngine {
       this.timeLeft--;
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask2QuestionRec(index);
+        this.playBeepThen(() => this.startTask2QuestionRec(index));
       }
     }, 1000);
   }
@@ -245,7 +262,7 @@ class OgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask3Rec();
+        this.playBeepThen(() => this.startTask3Rec());
       }
     }, 1000);
   }
@@ -299,7 +316,7 @@ class OgeEngine {
       case 'intro':
         this.resetTimer(); this.startTask1Prep(); break;
       case 'task1_prep':
-        this.resetTimer(); this.startTask1Rec(); break;
+        this.resetTimer(); this.playBeepThen(() => this.startTask1Rec()); break;
       case 'task1_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -312,7 +329,7 @@ class OgeEngine {
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.startTask2QuestionRec(this.questionIndex);
+        this.playBeepThen(() => this.startTask2QuestionRec(this.questionIndex));
         break;
       case 'task2_q_rec':
         this.resetTimer();
@@ -320,7 +337,7 @@ class OgeEngine {
         break;
 
       case 'task3_prep':
-        this.resetTimer(); this.startTask3Rec(); break;
+        this.resetTimer(); this.playBeepThen(() => this.startTask3Rec()); break;
       case 'task3_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -328,7 +345,7 @@ class OgeEngine {
     }
   }
 
-  // mp3 конвертация
+  // mp3 конвертация (как раньше)
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
@@ -368,7 +385,6 @@ class OgeEngine {
     }
     const end = mp3Encoder.flush();
     if (end.length > 0) mp3Data.push(end);
-
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
   async convertMultipleWebmToMp3(webmBlobs) {
@@ -409,7 +425,6 @@ class OgeEngine {
     }
     const end = mp3Encoder.flush();
     if (end.length > 0) mp3Data.push(end);
-
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
 
