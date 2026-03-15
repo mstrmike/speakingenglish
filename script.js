@@ -323,3 +323,4 @@ playRecBtn.addEventListener('click', () => {
   }
   player.play().catch(e => console.error(e));
 });
+
