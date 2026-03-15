@@ -1,4 +1,14 @@
-// Общие DOM-элементы
+// ===== НАСТРОЙКА ДОСТУПА =====
+
+// Пока просто флаг. Потом здесь можно будет подставлять результат проверки кода / подписки.
+let isPremiumUser = false;
+
+// Пример: временно включить премиум для теста
+// isPremiumUser = true;
+
+
+// ===== DOM-элементы =====
+
 const screenStart = document.getElementById('screen-start');
 const screenExam  = document.getElementById('screen-exam');
 const screenFinal = document.getElementById('screen-final');
@@ -27,31 +37,102 @@ const playDownload4Btn = document.getElementById('playDownload4Btn');
 const finalPlayer      = document.getElementById('finalPlayer');
 const backBtn          = document.getElementById('backBtn');
 
+// состояние выбора
 let studentLastName  = '';
 let studentFirstName = '';
 let studentClass     = '';
-let currentExam      = 'oge';
-let currentVariant   = 1;
+let currentExam      = 'oge';   // 'oge' | 'ege'
+let currentVariantId = null;    // строка вида "free:1" или "premium:3"
 let currentConfig    = null;
 
 let examEngine = null;
 
-// заполнение вариантов
+
+// ===== Вспомогательные функции для free/premium =====
+
+// Собрать список доступных вариантов для экзамена с учётом isPremiumUser
+function getAvailableVariantsForExam(examKey) {
+  const examBank = TASK_BANK[examKey] || {};
+  const free     = examBank.free     || {};
+  const premium  = examBank.premium  || {};
+
+  const result = [];
+
+  // сначала free
+  Object.keys(free).sort((a,b) => Number(a)-Number(b)).forEach(num => {
+    result.push({
+      id: `free:${num}`,
+      label: `Бесплатный вариант ${num}`,
+      group: 'free',
+      num,
+      config: free[num]
+    });
+  });
+
+  // если есть премиум-доступ – добавляем premium
+  if (isPremiumUser) {
+    Object.keys(premium).sort((a,b) => Number(a)-Number(b)).forEach(num => {
+      result.push({
+        id: `premium:${num}`,
+        label: `Премиум вариант ${num}`,
+        group: 'premium',
+        num,
+        config: premium[num]
+      });
+    });
+  }
+
+  return result;
+}
+
+// Получить конфиг по id вида "free:1" / "premium:3"
+function getConfigByVariantId(examKey, variantId) {
+  const [group, numStr] = String(variantId).split(':');
+  const num = Number(numStr);
+  const examBank = TASK_BANK[examKey] || {};
+  const groupBank = examBank[group] || {};
+  return groupBank[num] || null;
+}
+
+
+// ===== Заполнение select с вариантами =====
+
 function populateVariants() {
-  const examKey = examSelect.value;
-  const bank = TASK_BANK[examKey] || {};
+  const examKey = examSelect.value; // 'oge' или 'ege'
+  const variants = getAvailableVariantsForExam(examKey);
+
   variantSelect.innerHTML = '';
-  Object.keys(bank).forEach(v => {
+
+  if (!variants.length) {
     const opt = document.createElement('option');
-    opt.value = v;
-    opt.textContent = `Вариант ${v}`;
+    opt.value = '';
+    opt.textContent = 'Нет доступных вариантов';
+    variantSelect.appendChild(opt);
+    return;
+  }
+
+  variants.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;     // free:1 / premium:3
+    opt.textContent = v.label;
     variantSelect.appendChild(opt);
   });
+
+  // по умолчанию выбираем первый доступный вариант
+  currentVariantId = variants[0].id;
 }
+
 examSelect.addEventListener('change', populateVariants);
+variantSelect.addEventListener('change', () => {
+  currentVariantId = variantSelect.value;
+});
+
+// При загрузке страницы
 populateVariants();
 
-// старт экзамена
+
+// ===== Старт экзамена =====
+
 startExamBtn.addEventListener('click', async () => {
   studentLastName  = (lastNameInput.value  || '').trim();
   studentFirstName = (firstNameInput.value || '').trim();
@@ -62,15 +143,15 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  currentExam    = examSelect.value;
-  currentVariant = parseInt(variantSelect.value, 10) || 1;
+  currentExam    = examSelect.value;          // 'oge'|'ege'
+  currentVariantId = variantSelect.value || currentVariantId;
 
-  const bank = TASK_BANK[currentExam];
-  if (!bank || !bank[currentVariant]) {
-    alert('Для выбранного экзамена и варианта нет заданий.');
+  const config = getConfigByVariantId(currentExam, currentVariantId);
+  if (!config) {
+    alert('Для выбранного экзамена и варианта нет заданий (или нет доступа).');
     return;
   }
-  currentConfig = bank[currentVariant];
+  currentConfig = config;
 
   let micStream;
   try {
@@ -81,7 +162,11 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  examTitle.textContent = `${currentExam.toUpperCase()}, вариант ${currentVariant}`;
+  // Человекочитаемый заголовок
+  const [group, numStr] = String(currentVariantId).split(':');
+  const num = Number(numStr);
+  const groupTitle = group === 'free' ? 'бесплатный' : 'премиум';
+  examTitle.textContent = `${currentExam.toUpperCase()}, ${groupTitle} вариант ${num}`;
 
   screenStart.classList.add('hidden');
   screenExam.classList.remove('hidden');
@@ -108,7 +193,7 @@ startExamBtn.addEventListener('click', async () => {
     studentFirstName,
     studentClass,
     currentExam,
-    currentVariant,
+    currentVariant: num,      // только номер варианта для названия файлов
     config: currentConfig,
     micStream
   };
@@ -120,6 +205,9 @@ startExamBtn.addEventListener('click', async () => {
   }
   examEngine.start();
 });
+
+
+// ===== Проброс кнопок =====
 
 actionBtn.addEventListener('click', () => {
   if (examEngine && typeof examEngine.handleAction === 'function') {
