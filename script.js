@@ -12,11 +12,12 @@ const variantSelect  = document.getElementById('variantSelect');
 const startExamBtn   = document.getElementById('startExamBtn');
 
 // ЭКЗАМЕН
-const examTitle  = document.getElementById('examTitle');
-const phaseLabel = document.getElementById('phaseLabel');
-const taskDiv    = document.getElementById('task');
-const timerDiv   = document.getElementById('timer');
-const actionBtn  = document.getElementById('actionBtn');
+const examTitle     = document.getElementById('examTitle');
+const phaseLabel    = document.getElementById('phaseLabel');
+const taskDiv       = document.getElementById('task');
+const timerDiv      = document.getElementById('timer');
+const actionBtn     = document.getElementById('actionBtn');
+const questionPlayer = document.getElementById('questionPlayer'); // <audio> для вопросов
 
 // ФИНАЛ
 const playDownload1Btn = document.getElementById('playDownload1Btn');
@@ -35,9 +36,9 @@ let currentVariant   = 1;
 // фаза: 'intro', 'task1_prep', 'task1_rec',
 //       'task2_intro', 'task2_q_prep', 'task2_q_rec',
 //       'task3_prep', 'task3_rec', 'finished'
-let phase        = null;
-let timer        = null;
-let timeLeft     = 0;
+let phase         = null;
+let timer         = null;
+let timeLeft      = 0;
 let questionIndex = 0; // 0–5 для задания 2
 
 // МИКРОФОН / ЗАПИСЬ
@@ -50,7 +51,7 @@ let task1Blob  = null;
 let task2Blobs = [];  // 6 webm, по одному на ответ
 let task3Blob  = null;
 
-// КОНФИГ ЗАДАНИЙ (заглушки, можно заменить)
+// КОНФИГ ЗАДАНИЙ (заглушки, пути к аудио заменишь на реальные)
 const config = {
   introText: 'Инструкция к экзамену (заглушка). Вы выполните 3 задания.',
   introTime: 5,
@@ -61,10 +62,18 @@ const config = {
     recTime:  20
   },
   task2: {
-    infoText: 'Задание 2. Вы услышите 6 вопросов. После каждого — время на ответ (заглушка).',
-    questionText: 'Вопрос {n} (заглушка). Подумайте над ответом.',
-    prepGap: 3,   // пауза/прослушивание вопроса (сек)
-    recTime:  15  // запись ответа (сек)
+    infoText: 'Задание 2. Вы услышите 6 вопросов. После каждого — время на ответ.',
+    questionText: 'Вопрос {n}.', // текст на экране
+    prepGap: 3,   // запасная пауза, если аудио не проигралось
+    recTime:  15, // запись ответа (сек)
+    questionAudio: [
+      'audio/oge1_q1.mp3',
+      'audio/oge1_q2.mp3',
+      'audio/oge1_q3.mp3',
+      'audio/oge1_q4.mp3',
+      'audio/oge1_q5.mp3',
+      'audio/oge1_q6.mp3'
+    ]
   },
   task3: {
     text: 'Задание 3. Монолог по плану (заглушка).',
@@ -194,6 +203,8 @@ function startTask2Intro() {
 
   questionIndex = 0;
   task2Blobs = [];
+  questionPlayer.style.display = 'none';
+  questionPlayer.src = '';
 
   resetTimer();
   timer = setInterval(() => {
@@ -215,21 +226,49 @@ function startTask2QuestionPrep(index) {
   questionIndex = index;
   phase = 'task2_q_prep';
   const n = index + 1;
-  phaseLabel.textContent = `Задание 2: вопрос ${n}/6 (прослушивание)`;
-  taskDiv.textContent    = config.task2.questionText.replace('{n}', n) +
-                           `\n\nЧерез несколько секунд начнётся запись ответа.`;
-  // В этой фазе НЕ показываем реальный таймер для ученика, но можем использовать внутренний
-  timeLeft = config.task2.prepGap;
-  timerDiv.textContent = ''; // убрать счётчик, чтобы не отвлекал
+  phaseLabel.textContent = `Задание 2: вопрос ${n}/6`;
+  taskDiv.textContent    = config.task2.questionText.replace('{n}', n);
+
   actionBtn.disabled = false;
   actionBtn.textContent = 'Сразу перейти к записи';
 
+  // скрываем текстовый таймер (в этот момент ученик слушает вопрос)
+  resetTimer();
+  timerDiv.textContent = '';
+
+  const qSrc = config.task2.questionAudio && config.task2.questionAudio[index];
+
+  if (qSrc) {
+    questionPlayer.src = qSrc;
+    questionPlayer.style.display = 'block';
+
+    questionPlayer.onended = () => {
+      questionPlayer.style.display = 'none';
+      startTask2QuestionRec(index);
+    };
+
+    questionPlayer.play().catch(err => {
+      console.error(err);
+      startQuestionPrepFallback(index);
+    });
+  } else {
+    startQuestionPrepFallback(index);
+  }
+}
+
+// резервная пауза, если аудио не проигралось
+function startQuestionPrepFallback(index) {
+  questionPlayer.pause();
+  questionPlayer.currentTime = 0;
+  questionPlayer.style.display = 'none';
+
+  timeLeft = config.task2.prepGap;
   resetTimer();
   timer = setInterval(() => {
     timeLeft--;
     if (timeLeft <= 0) {
       resetTimer();
-      startTask2QuestionRec(questionIndex);
+      startTask2QuestionRec(index);
     }
   }, 1000);
 }
@@ -355,7 +394,11 @@ actionBtn.addEventListener('click', () => {
       startTask2QuestionPrep(0);
       break;
     case 'task2_q_prep':
+      // прервать аудио и сразу перейти к записи
       resetTimer();
+      questionPlayer.pause();
+      questionPlayer.currentTime = 0;
+      questionPlayer.style.display = 'none';
       startTask2QuestionRec(questionIndex);
       break;
     case 'task2_q_rec':
@@ -463,7 +506,7 @@ async function convertWebmToMp3(webmBlob) {
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
 
-// склейка 6 webm → один mp3
+// склейка 6 webm → один mp3 (задание 2)
 async function convertMultipleWebmToMp3(webmBlobs) {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
   const buffers      = [];
