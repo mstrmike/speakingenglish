@@ -3,7 +3,7 @@ const screenStart = document.getElementById('screen-start');
 const screenExam  = document.getElementById('screen-exam');
 const screenFinal = document.getElementById('screen-final');
 
-// ЭЛЕМЕНТЫ СТАРТА
+// СТАРТ
 const lastNameInput  = document.getElementById('lastName');
 const firstNameInput = document.getElementById('firstName');
 const classNameInput = document.getElementById('className');
@@ -11,65 +11,45 @@ const examSelect     = document.getElementById('examSelect');
 const variantSelect  = document.getElementById('variantSelect');
 const startExamBtn   = document.getElementById('startExamBtn');
 
-// ЭЛЕМЕНТЫ ЭКЗАМЕНА
+// ЭКЗАМЕН
 const examTitle  = document.getElementById('examTitle');
 const phaseLabel = document.getElementById('phaseLabel');
 const taskDiv    = document.getElementById('task');
-const instrAudio = document.getElementById('instructionPlayer');
 const timerDiv   = document.getElementById('timer');
-const finishBtn  = document.getElementById('finishBtn');
+const actionBtn  = document.getElementById('actionBtn');
 
-// ЭЛЕМЕНТЫ ФИНАЛА
-const task1PlayDownloadBtn = document.getElementById('task1PlayDownloadBtn');
-const task2PlayDownloadBtn = document.getElementById('task2PlayDownloadBtn');
-const task3PlayDownloadBtn = document.getElementById('task3PlayDownloadBtn');
-const teacherEmailInput    = document.getElementById('teacherEmail');
-const sendTeacherBtn       = document.getElementById('sendTeacherBtn');
-const backToStartBtn       = document.getElementById('backToStartBtn');
-const finalPlayer          = document.getElementById('finalPlayer');
+// ФИНАЛ
+const playDownloadBtn = document.getElementById('playDownloadBtn');
+const finalPlayer     = document.getElementById('finalPlayer');
+const backBtn         = document.getElementById('backBtn');
 
 // СОСТОЯНИЕ
-let studentFirstName = '';
 let studentLastName  = '';
+let studentFirstName = '';
 let studentClass     = '';
 let currentExam      = 'oge';
 let currentVariant   = 1;
 
-let phase        = null; // 'intro', 'task1_prep', 'task1_rec', 'task2_qX_prep', 'task2_qX_rec', 'task3_prep', 'task3_rec'
-let currentQIndex = 0;
+let phase       = null; // 'prep' | 'rec' | 'finished'
+let timer       = null;
+let timeLeft    = 0;
 
-// ТАЙМЕР
-let timerInterval = null;
-let timeLeft      = 0;
-
-// МИКРОФОН
+// МИКРОФОН / ЗАПИСЬ
 let micStream     = null;
 let mediaRecorder = null;
 let audioChunks   = [];
 
-// ЗАПИСИ
-let task1Blob  = null;     // webm
-let task2Blobs = [];       // webm[]
-let task3Blob  = null;     // webm
+// ЗАПИСЬ ЗАДАНИЯ
+let taskBlob = null; // webm
 
-// КОНФИГ ОГЭ ВАРИАНТА (заглушки)
-const ogeConfig = {
-  1: {
-    introText:  'Инструкция к экзамену (заглушка): вы выполняете 3 задания.',
-    introTime:  5,
-    task1Text:  'Задание 1. Прочитайте текст вслух (заглушка).',
-    task1Prep:  10,
-    task1Rec:   15,
-    task2Info:  'Задание 2. Вы услышите 6 вопросов. После каждого — время на ответ (заглушка).',
-    task2PrepGap: 3,
-    task2Rec:   5,
-    task3Text:  'Задание 3. Подготовьте монолог по плану (заглушка).',
-    task3Prep:  10,
-    task3Rec:   15
-  }
+// КОНФИГ ОДНОГО ЗАДАНИЯ
+const taskConfig = {
+  text: 'Задание: расскажите о своём любимом школьном предмете (заглушка).',
+  prepTime: 10,  // сек на подготовку
+  recTime:  30   // сек на запись
 };
 
-// ===== НАЧАЛО ЭКЗАМЕНА =====
+// ===== НАЧАЛО =====
 
 startExamBtn.addEventListener('click', async () => {
   studentLastName  = (lastNameInput.value  || '').trim();
@@ -77,14 +57,14 @@ startExamBtn.addEventListener('click', async () => {
   studentClass     = (classNameInput.value || '').trim();
 
   if (!studentLastName || !studentFirstName || !studentClass) {
-    alert('Пожалуйста, введите фамилию, имя и класс.');
+    alert('Введите фамилию, имя и класс.');
     return;
   }
 
   currentExam    = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10);
 
-  // Запрос микрофона один раз перед экзаменом
+  // запрос микрофона
   try {
     if (micStream) {
       micStream.getTracks().forEach(t => t.stop());
@@ -97,240 +77,110 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  examTitle.textContent = currentExam === 'oge'
-    ? `ОГЭ, вариант ${currentVariant}`
-    : `ЕГЭ (пока сценарий как у ОГЭ), вариант ${currentVariant}`;
+  examTitle.textContent = `${currentExam.toUpperCase()}, вариант ${currentVariant}`;
 
   screenStart.classList.add('hidden');
   screenExam.classList.remove('hidden');
   screenFinal.classList.add('hidden');
 
-  startOgeFlow();
+  startPrep();
 });
 
-// ===== СЦЕНАРИЙ ОГЭ =====
+// ===== ФАЗЫ ЗАДАНИЯ =====
 
-function startOgeFlow() {
-  task1Blob  = null;
-  task2Blobs = [];
-  task3Blob  = null;
-  currentQIndex = 0;
-  finalPlayer.src = '';
-  startIntro();
-}
+function startPrep() {
+  phase = 'prep';
+  phaseLabel.textContent = 'Подготовка к заданию';
+  taskDiv.textContent    = taskConfig.text + '\n\nВремя на подготовку.';
+  timeLeft = taskConfig.prepTime;
+  updateTimer();
+  actionBtn.disabled = false;
+  actionBtn.textContent = 'Сразу перейти к записи';
 
-// 0. Инструкция
-function startIntro() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'intro';
-  phaseLabel.textContent = 'Инструкция';
-  taskDiv.textContent    = cfg.introText;
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // текст кнопки
-
-  timeLeft = cfg.introTime;
-  startTimer(startTask1Prep);
-}
-
-// 1. Подготовка к заданию 1
-function startTask1Prep() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'task1_prep';
-  phaseLabel.textContent = 'Задание 1: подготовка';
-  taskDiv.textContent    = cfg.task1Text + '\n\nВремя на подготовку.';
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Сразу перейти к записи"
-
-  timeLeft = cfg.task1Prep;
-  startTimer(startTask1Rec);
-}
-
-// 1. Запись задания 1
-function startTask1Rec() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'task1_rec';
-  phaseLabel.textContent = 'Задание 1: запись';
-  taskDiv.textContent    = 'Читайте текст вслух. Идёт запись.';
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Закончить задание"
-
-  startRecording(blob => {
-    task1Blob = blob;
-    startTask2Intro();
-  });
-
-  timeLeft = cfg.task1Rec;
-  startTimer(() => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
-  });
-}
-
-// 2. Вступление к заданию 2
-function startTask2Intro() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'task2_intro';
-  phaseLabel.textContent = 'Задание 2: вступление';
-  taskDiv.textContent    = cfg.task2Info;
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Сразу перейти к записи" (к первому вопросу)
-
-  currentQIndex = 0;
-  timeLeft = 5;
-  startTimer(() => startTask2QuestionPrep(0));
-}
-
-// 2.x Подготовка к вопросу №i
-function startTask2QuestionPrep(index) {
-  const cfg = ogeConfig[currentVariant];
-  if (index >= 6) {
-    startTask3Prep();
-    return;
-  }
-
-  currentQIndex = index;
-  phase = `task2_q${index+1}_prep`;
-  phaseLabel.textContent = `Задание 2: вопрос ${index+1}/6 (прослушивание)`;
-  taskDiv.textContent    = `Вопрос ${index+1} (заглушка ${cfg.task2PrepGap} секунд), затем запись ответа.`;
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Сразу перейти к записи"
-
-  timeLeft = cfg.task2PrepGap;
-  startTimer(() => startTask2QuestionRec(index));
-}
-
-// 2.x Запись ответа на вопрос №i
-function startTask2QuestionRec(index) {
-  const cfg = ogeConfig[currentVariant];
-  phase = `task2_q${index+1}_rec`;
-  phaseLabel.textContent = `Задание 2: ответ на вопрос ${index+1}/6`;
-  taskDiv.textContent    = `Говорите. Время на ответ ${cfg.task2Rec} секунд.`;
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Закончить задание"
-
-  startRecording(blob => {
-    task2Blobs.push(blob);
-    startTask2QuestionPrep(index + 1);
-  });
-
-  timeLeft = cfg.task2Rec;
-  startTimer(() => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
-  });
-}
-
-// 3. Подготовка к заданию 3
-function startTask3Prep() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'task3_prep';
-  phaseLabel.textContent = 'Задание 3: подготовка';
-  taskDiv.textContent    = cfg.task3Text + '\n\nВремя на подготовку.';
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Сразу перейти к записи"
-
-  timeLeft = cfg.task3Prep;
-  startTimer(startTask3Rec);
-}
-
-// 3. Запись задания 3
-function startTask3Rec() {
-  const cfg = ogeConfig[currentVariant];
-  phase = 'task3_rec';
-  phaseLabel.textContent = 'Задание 3: запись';
-  taskDiv.textContent    = 'Говорите монолог. Идёт запись.';
-  instrAudio.style.display = 'none';
-  resetExamButtons();
-
-  setFinishLabel(); // "Закончить задание"
-
-  startRecording(blob => {
-    task3Blob = blob;
-    finishExam();
-  });
-
-  timeLeft = cfg.task3Rec;
-  startTimer(() => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-    }
-  });
-}
-
-// Финал
-function finishExam() {
-  phase = 'finished';
-  clearInterval(timerInterval);
-  timerDiv.textContent = '00:00';
-  resetExamButtons();
-
-  screenExam.classList.add('hidden');
-  screenFinal.classList.remove('hidden');
-
-  task1PlayDownloadBtn.disabled = !task1Blob;
-  task2PlayDownloadBtn.disabled = task2Blobs.length !== 6;
-  task3PlayDownloadBtn.disabled = !task3Blob;
-
-  sendTeacherBtn.disabled = !(task1Blob && task3Blob && task2Blobs.length === 6);
-
-  finalPlayer.src = '';
-}
-
-// ===== ТАЙМЕР =====
-
-function startTimer(onFinish) {
-  clearInterval(timerInterval);
-  updateTimerDisplay();
-  timerInterval = setInterval(() => {
+  resetTimer();
+  timer = setInterval(() => {
     timeLeft--;
-    updateTimerDisplay();
+    updateTimer();
     if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      if (typeof onFinish === 'function') onFinish();
+      resetTimer();
+      startRec();
     }
   }, 1000);
 }
 
-function updateTimerDisplay() {
+function startRec() {
+  phase = 'rec';
+  phaseLabel.textContent = 'Запись ответа';
+  taskDiv.textContent    = 'Говорите. Идёт запись.';
+  timeLeft = taskConfig.recTime;
+  updateTimer();
+  actionBtn.disabled = false;
+  actionBtn.textContent = 'Закончить задание';
+
+  startRecording(blob => {
+    taskBlob = blob;
+    finishTask();
+  });
+
+  resetTimer();
+  timer = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+    if (timeLeft <= 0) {
+      resetTimer();
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+    }
+  }, 1000);
+}
+
+function finishTask() {
+  phase = 'finished';
+  resetTimer();
+  timerDiv.textContent = '00:00';
+  actionBtn.disabled = true;
+
+  screenExam.classList.add('hidden');
+  screenFinal.classList.remove('hidden');
+
+  playDownloadBtn.disabled = !taskBlob;
+  finalPlayer.src = '';
+}
+
+// ===== КНОПКА ДЕЙСТВИЯ НА ЭКЗАМЕНЕ =====
+
+actionBtn.addEventListener('click', () => {
+  if (phase === 'prep') {
+    resetTimer();
+    startRec();
+    return;
+  }
+  if (phase === 'rec') {
+    resetTimer();
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  }
+});
+
+// ===== ТАЙМЕР =====
+
+function updateTimer() {
   const m = Math.floor(timeLeft / 60);
   const s = timeLeft % 60;
   timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-function resetExamButtons() {
-  clearInterval(timerInterval);
-  timerDiv.textContent = '00:00';
-  finishBtn.disabled   = false;
-}
-
-function setFinishLabel() {
-  // На фазах подготовки – "Сразу перейти к записи", на записях – "Закончить задание"
-  if (phase && (phase.endsWith('_prep') || phase === 'intro' || phase === 'task2_intro')) {
-    finishBtn.textContent = 'Сразу перейти к записи';
-  } else {
-    finishBtn.textContent = 'Закончить задание';
+function resetTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
   }
 }
 
 // ===== ЗАПИСЬ =====
 
-// Запуск записи; callback получает webm blob после остановки
 async function startRecording(onStopped) {
   try {
     if (!micStream) {
@@ -356,38 +206,14 @@ async function startRecording(onStopped) {
   }
 }
 
-// Логика кнопки "Сразу перейти к записи" / "Закончить задание"
-finishBtn.addEventListener('click', () => {
-  // 1) фазы подготовки: сразу перейти к записи
-  if (phase === 'intro') {
-    startTask1Prep();
-    return;
-  }
-  if (phase === 'task1_prep') {
-    startTask1Rec();
-    return;
-  }
-  if (phase === 'task2_intro') {
-    startTask2QuestionPrep(0);
-    return;
-  }
-  if (phase && phase.endsWith('_prep')) {
-    startTask2QuestionRec(currentQIndex);
-    return;
-  }
-  if (phase === 'task3_prep') {
-    startTask3Rec();
-    return;
-  }
+// ===== МP3 КОНВЕРТАЦИЯ + СКАЧИВАНИЕ =====
 
-  // 2) фазы записи: досрочно остановить запись, переход сделает onstop
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    clearInterval(timerInterval);
-    mediaRecorder.stop();
-  }
-});
-
-// ===== MP3 КОНВЕРТАЦИЯ =====
+function fioPrefix() {
+  const ln = studentLastName  || 'Student';
+  const fn = studentFirstName || 'Name';
+  const cl = studentClass     || 'Class';
+  return `${ln}_${fn}_${cl}_var${currentVariant}`;
+}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -427,118 +253,21 @@ async function convertWebmToMp3(webmBlob) {
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
 
-async function convertMultipleWebmToMp3(webmBlobs) {
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const buffers      = [];
-  let totalLength    = 0;
-  let sampleRate     = 44100;
-
-  for (const blob of webmBlobs) {
-    const arrayBuffer = await blob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    buffers.push(audioBuffer);
-    totalLength += audioBuffer.length;
-    sampleRate = audioBuffer.sampleRate;
-  }
-
-  const merged = new Float32Array(totalLength);
-  let offset = 0;
-  for (const buf of buffers) {
-    merged.set(buf.getChannelData(0), offset);
-    offset += buf.length;
-  }
-
-  const samples = new Int16Array(merged.length);
-  for (let i = 0; i < merged.length; i++) {
-    let s = Math.max(-1, Math.min(1, merged[i]));
-    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-
-  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
-  const sampleBlock = 1152;
-  const mp3Data     = [];
-
-  for (let i = 0; i < samples.length; i += sampleBlock) {
-    const chunk = samples.subarray(i, i + sampleBlock);
-    const buf   = mp3Encoder.encodeBuffer(chunk);
-    if (buf.length > 0) mp3Data.push(buf);
-  }
-  const end = mp3Encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
-}
-
-// ===== ФИО + КЛАСС В ИМЯХ ФАЙЛОВ =====
-
-function fioPrefix() {
-  const ln = studentLastName  || 'Student';
-  const fn = studentFirstName || 'Name';
-  const cl = studentClass     || 'Class';
-  return `${ln}_${fn}_${cl}`;
-}
-
-// ===== ФИНАЛ: ПРОСЛУШКА + СКАЧИВАНИЕ =====
-
-task1PlayDownloadBtn.addEventListener('click', async () => {
-  if (!task1Blob) return;
-  const mp3 = await convertWebmToMp3(task1Blob);
+// Кнопка финала: прослушать + скачать
+playDownloadBtn.addEventListener('click', async () => {
+  if (!taskBlob) return;
+  const mp3 = await convertWebmToMp3(taskBlob);
   const url = URL.createObjectURL(mp3);
   finalPlayer.src = url;
   finalPlayer.play().catch(console.error);
   downloadBlob(mp3, `${fioPrefix()}_task1.mp3`);
 });
 
-task2PlayDownloadBtn.addEventListener('click', async () => {
-  if (task2Blobs.length !== 6) return;
-  const mp3 = await convertMultipleWebmToMp3(task2Blobs);
-  const url = URL.createObjectURL(mp3);
-  finalPlayer.src = url;
-  finalPlayer.play().catch(console.error);
-  downloadBlob(mp3, `${fioPrefix()}_task2_all.mp3`);
-});
-
-task3PlayDownloadBtn.addEventListener('click', async () => {
-  if (!task3Blob) return;
-  const mp3 = await convertWebmToMp3(task3Blob);
-  const url = URL.createObjectURL(mp3);
-  finalPlayer.src = url;
-  finalPlayer.play().catch(console.error);
-  downloadBlob(mp3, `${fioPrefix()}_task3.mp3`);
-});
-
-// Псевдо-отправка учителю через mailto с адресом из поля
-sendTeacherBtn.addEventListener('click', () => {
-  const email = (teacherEmailInput.value || '').trim();
-  if (!email) {
-    alert('Введите e-mail учителя.');
-    return;
-  }
-
-  const subject = encodeURIComponent(
-    `Аудио ответов ${currentExam.toUpperCase()}: ${studentLastName} ${studentFirstName}, ${studentClass}`
-  );
-
-  const body = encodeURIComponent(
-    `Здравствуйте!\n\n` +
-    `Отправляю аудиозаписи устной части.\n\n` +
-    `Фамилия, имя: ${studentLastName} ${studentFirstName}\n` +
-    `Класс: ${studentClass}\n` +
-    `Экзамен: ${currentExam.toUpperCase()}, вариант ${currentVariant}\n\n` +
-    `Файлы для прикрепления (вы уже скачали их на компьютер):\n` +
-    `- ${fioPrefix()}_task1.mp3\n` +
-    `- ${fioPrefix()}_task2_all.mp3\n` +
-    `- ${fioPrefix()}_task3.mp3\n\n` +
-    `С уважением,\n${studentFirstName}`
-  );
-
-  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
-});
-
-// Вернуться к выбору экзамена
-backToStartBtn.addEventListener('click', () => {
+// Вернуться на старт
+backBtn.addEventListener('click', () => {
   screenFinal.classList.add('hidden');
   screenStart.classList.remove('hidden');
-  // сброс состояния плеера, полей учителя и т.п. при необходимости
   finalPlayer.src = '';
+  taskBlob = null;
+  phase = null;
 });
