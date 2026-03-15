@@ -33,6 +33,22 @@ class EgeEngine {
     }
   }
 
+  playBeepThen(callback) {
+    if (!this.beepPlayer) {
+      callback && callback();
+      return;
+    }
+    this.beepPlayer.currentTime = 0;
+    this.beepPlayer.onended = () => {
+      this.beepPlayer.onended = null;
+      callback && callback();
+    };
+    this.beepPlayer.play().catch(err => {
+      console.error(err);
+      callback && callback();
+    });
+  }
+
   async startRecording(onStopped) {
     try {
       this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
@@ -91,7 +107,7 @@ class EgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask1Rec();
+        this.playBeepThen(() => this.startTask1Rec());
       }
     }, 1000);
   }
@@ -169,7 +185,7 @@ class EgeEngine {
       this.questionPlayer.style.display = 'block';
       this.questionPlayer.onended = () => {
         this.questionPlayer.style.display = 'none';
-        this.startTask2QuestionRec(index);
+        this.playBeepThen(() => this.startTask2QuestionRec(index));
       };
       this.questionPlayer.play().catch(err => {
         console.error(err);
@@ -191,7 +207,7 @@ class EgeEngine {
       this.timeLeft--;
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask2QuestionRec(index);
+        this.playBeepThen(() => this.startTask2QuestionRec(index));
       }
     }, 1000);
   }
@@ -277,7 +293,7 @@ class EgeEngine {
       this.questionPlayer.style.display = 'block';
       this.questionPlayer.onended = () => {
         this.questionPlayer.style.display = 'none';
-        this.startTask3QuestionRec(index);
+        this.playBeepThen(() => this.startTask3QuestionRec(index));
       };
       this.questionPlayer.play().catch(err => {
         console.error(err);
@@ -299,7 +315,7 @@ class EgeEngine {
       this.timeLeft--;
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask3QuestionRec(index);
+        this.playBeepThen(() => this.startTask3QuestionRec(index));
       }
     }, 1000);
   }
@@ -352,7 +368,7 @@ class EgeEngine {
       this.updateTimer();
       if (this.timeLeft <= 0) {
         this.resetTimer();
-        this.startTask4Rec();
+        this.playBeepThen(() => this.startTask4Rec());
       }
     }, 1000);
   }
@@ -368,7 +384,7 @@ class EgeEngine {
 
     this.startRecording(blob => {
       this.task4Blob = blob;
-      this.finish();  // критически важно – завершаем ЕГЭ
+      this.finish();
     });
 
     this.resetTimer();
@@ -403,40 +419,45 @@ class EgeEngine {
 
   handleAction() {
     switch (this.phase) {
-      case 'intro':        this.resetTimer(); this.startTask1Prep(); break;
-      case 'task1_prep':   this.resetTimer(); this.startTask1Rec();  break;
+      case 'intro':
+        this.resetTimer(); this.startTask1Prep(); break;
+      case 'task1_prep':
+        this.resetTimer(); this.playBeepThen(() => this.startTask1Rec()); break;
       case 'task1_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task2_intro':  this.resetTimer(); this.startTask2QuestionPrep(0); break;
+      case 'task2_intro':
+        this.resetTimer(); this.startTask2QuestionPrep(0); break;
       case 'task2_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.startTask2QuestionRec(this.questionIndex);
+        this.playBeepThen(() => this.startTask2QuestionRec(this.questionIndex));
         break;
       case 'task2_q_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task3_intro':  this.resetTimer(); this.startTask3QuestionPrep(0); break;
+      case 'task3_intro':
+        this.resetTimer(); this.startTask3QuestionPrep(0); break;
       case 'task3_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.startTask3QuestionRec(this.questionIndex);
+        this.playBeepThen(() => this.startTask3QuestionRec(this.questionIndex));
         break;
       case 'task3_q_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task4_prep':   this.resetTimer(); this.startTask4Rec(); break;
+      case 'task4_prep':
+        this.resetTimer(); this.playBeepThen(() => this.startTask4Rec()); break;
       case 'task4_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -444,7 +465,7 @@ class EgeEngine {
     }
   }
 
-  // mp3
+  // mp3 конвертация и скачивание (аналогично ОГЭ)
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
@@ -484,7 +505,6 @@ class EgeEngine {
     }
     const end = mp3Encoder.flush();
     if (end.length > 0) mp3Data.push(end);
-
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
   async convertMultipleWebmToMp3(webmBlobs) {
@@ -525,7 +545,6 @@ class EgeEngine {
     }
     const end = mp3Encoder.flush();
     if (end.length > 0) mp3Data.push(end);
-
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
 
