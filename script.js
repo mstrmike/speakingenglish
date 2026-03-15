@@ -1,240 +1,103 @@
-// ЭЛЕМЕНТЫ СТРАНИЦЫ
+// ЭКРАНЫ
+const screenSelect = document.getElementById('screen-select');
+const screenExam   = document.getElementById('screen-exam');
+const screenFinal  = document.getElementById('screen-final');
+
+// ЭЛЕМЕНТЫ ВЫБОРА
+const examSelect    = document.getElementById('examSelect');
 const variantSelect = document.getElementById('variantSelect');
-const startExamBtn = document.getElementById('startExamBtn');
-const taskDiv = document.getElementById('task');
-const timerDiv = document.getElementById('timer');
+const startExamBtn  = document.getElementById('startExamBtn');
 
-const startRecBtn = document.getElementById('startRecBtn');
-const stopRecBtn = document.getElementById('stopRecBtn');
-const playRecBtn = document.getElementById('playRecBtn');
+// ЭЛЕМЕНТЫ ЭКЗАМЕНА
+const examTitle        = document.getElementById('examTitle');
+const phaseLabel       = document.getElementById('phaseLabel');
+const taskDiv          = document.getElementById('task');
+const instructionAudio = document.getElementById('instructionPlayer');
+const timerDiv         = document.getElementById('timer');
+
+const startRecBtn    = document.getElementById('startRecBtn');
+const stopRecBtn     = document.getElementById('stopRecBtn');
+const playRecBtn     = document.getElementById('playRecBtn');
 const downloadRecBtn = document.getElementById('downloadRecBtn');
-const player = document.getElementById('player');
-const nextTaskBtn = document.getElementById('nextTaskBtn');
+const player         = document.getElementById('player');
+const continueBtn    = document.getElementById('continueBtn');
 
-// ДАННЫЕ
-let variants = {};
+// ЭЛЕМЕНТЫ ФИНАЛА
+const downloadTask1Btn = document.getElementById('downloadTask1Btn');
+const downloadTask2Btn = document.getElementById('downloadTask2Btn');
+const downloadTask3Btn = document.getElementById('downloadTask3Btn');
+
+// СОСТОЯНИЕ
+let currentExam    = 'oge'; // 'oge' | 'ege'
 let currentVariant = 1;
-let currentTaskIndex = 0;
-let currentTask = null;
+
+let phase = null; // текущая фаза сценария
 
 // ТАЙМЕР
 let timerInterval = null;
 let timeLeft = 0;
 
-// АУДИО
+// АУДИОЗАПИСЬ
 let mediaRecorder = null;
-let audioChunks = [];
-let lastAudioBlob = null;   // записанный webm
+let audioChunks   = [];
+let lastAudioBlob = null;   // последняя webm-запись
 let currentStream = null;
 
-// === ЗАГРУЖАЕМ ЗАДАНИЯ ИЗ tasks.json ===
-fetch('tasks.json')
-  .then(res => res.json())
-  .then(data => {
-    data.variants.forEach(v => {
-      variants[v.id] = v.tasks;
-    });
-  })
-  .catch(err => {
-    console.error('Ошибка загрузки tasks.json', err);
-    taskDiv.textContent = 'Ошибка загрузки заданий.';
-  });
+// ХРАНЕНИЕ ЗАПИСЕЙ
+let task1Blob  = null;    // webm задания 1
+let task2Blobs = [];      // webm 6 ответов задания 2
+let task3Blob  = null;    // webm задания 3
 
-// === СТАРТ ЭКЗАМЕНА ===
+// ПОКА ЗАГОТОВКА ПОД АУДИО – здесь позже подставите реальные файлы
+// Для каждого варианта можно будет задать свои пути
+const ogeAudio = {
+  1: {
+    intro: '',          // 'audio/oge1_intro.mp3'
+    task1_text: 'Здесь будет текст для чтения задания 1.',
+    task1_prep_time: 60,   // реальное время подготовки
+    task1_rec_time: 120,   // реальное время записи
+
+    // 6 вопросов задания 2
+    task2_questions: ['', '', '', '', '', ''], // 'audio/oge1_q1.mp3', ...
+
+    task2_rec_time: 40,    // 40 секунд на каждый ответ
+
+    task3_text: 'Здесь будет задание 3 (монолог по плану).',
+    task3_prep_time: 90,
+    task3_rec_time: 180
+  }
+};
+
+// === ИНИЦИАЛИЗАЦИЯ ===
 startExamBtn.addEventListener('click', () => {
+  currentExam = examSelect.value; // 'oge' или 'ege'
   currentVariant = parseInt(variantSelect.value, 10);
-  currentTaskIndex = 0;
-  loadTask();
-});
 
-// === ЗАГРУЗКА ЗАДАНИЯ ===
-function loadTask() {
-  const tasks = variants[currentVariant];
-  if (!tasks) {
-    taskDiv.textContent = 'Вариант не найден.';
-    return;
-  }
-  if (currentTaskIndex >= tasks.length) {
-    taskDiv.textContent = 'Экзамен завершён!';
-    timerDiv.textContent = '00:00';
-    startRecBtn.disabled = true;
-    stopRecBtn.disabled = true;
-    playRecBtn.disabled = true;
-    downloadRecBtn.disabled = true;
-    nextTaskBtn.disabled = true;
-    return;
-  }
+  examTitle.textContent = currentExam === 'oge'
+    ? `ОГЭ, вариант ${currentVariant}`
+    : `ЕГЭ, вариант ${currentVariant}`;
 
-  currentTask = tasks[currentTaskIndex];
-  taskDiv.textContent = currentTask.text;
-  timeLeft = currentTask.time;
+  screenSelect.classList.add('hidden');
+  screenExam.classList.remove('hidden');
+  screenFinal.classList.add('hidden');
 
-  player.style.display = 'none';
-  player.src = '';
-  lastAudioBlob = null;
-
-  startRecBtn.disabled = false;
-  stopRecBtn.disabled = true;
-  playRecBtn.disabled = true;
-  downloadRecBtn.disabled = true;
-  nextTaskBtn.disabled = true;
-
-  startTimer();
-}
-
-// === ТАЙМЕР ===
-function startTimer() {
-  clearInterval(timerInterval);
-  updateTimerDisplay();
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    updateTimerDisplay();
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-      if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
-    }
-  }, 1000);
-}
-
-function updateTimerDisplay() {
-  const m = Math.floor(timeLeft / 60);
-  const s = timeLeft % 60;
-  timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-// === ЗАПИСЬ АУДИО ===
-startRecBtn.addEventListener('click', async () => {
-  try {
-    // Останавливаем старый поток, если был
-    if (currentStream) {
-      currentStream.getTracks().forEach(t => t.stop());
-    }
-
-    currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'audio/webm' });
-    audioChunks = [];
-    lastAudioBlob = null;
-
-    mediaRecorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) {
-        audioChunks.push(e.data);
-      }
-    };
-
-    mediaRecorder.onstop = () => {
-      if (!audioChunks.length) {
-        console.warn('Нет аудиоданных для воспроизведения');
-        return;
-      }
-      // Собираем webm-blob
-      lastAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-
-      const url = URL.createObjectURL(lastAudioBlob);
-      player.src = url;
-      player.style.display = 'block';
-
-      playRecBtn.disabled = false;
-      downloadRecBtn.disabled = false;
-      startRecBtn.disabled = false;
-      stopRecBtn.disabled = true;
-      nextTaskBtn.disabled = false;
-
-      // Останавливаем микрофон
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-      }
-    };
-
-    mediaRecorder.start();
-    startRecBtn.disabled = true;
-    stopRecBtn.disabled = false;
-    playRecBtn.disabled = true;
-    downloadRecBtn.disabled = true;
-    nextTaskBtn.disabled = true;
-  } catch (err) {
-    alert('Не удалось получить доступ к микрофону.');
-    console.error(err);
+  if (currentExam === 'oge') {
+    startOgeFlow();
+  } else {
+    // Позже можно добавить сценарий ЕГЭ
+    alert('Пока реализован только сценарий ОГЭ.');
+    startOgeFlow();
   }
 });
 
-stopRecBtn.addEventListener('click', () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-    clearInterval(timerInterval);
-  }
-});
+// === СЦЕНАРИЙ ОГЭ ===
+function startOgeFlow() {
+  // сбрасываем записи
+  task1Blob  = null;
+  task2Blobs = [];
+  task3Blob  = null;
 
-// === ПРОСЛУШИВАНИЕ WEBM ===
-playRecBtn.addEventListener('click', () => {
-  if (!lastAudioBlob) {
-    alert('Сначала запишите ответ.');
-    return;
-  }
-  if (player.src) {
-    player.play().catch(e => {
-      console.error('Ошибка при воспроизведении', e);
-      alert('Не удалось воспроизвести запись (см. консоль).');
-    });
-  }
-});
+  // фаза: общая инструкция
+  phaseLabel.textContent = 'Инструкция к экзамену';
+  p
 
-// === КОНВЕРТАЦИЯ В MP3 + СКАЧИВАНИЕ ===
-downloadRecBtn.addEventListener('click', async () => {
-  if (!lastAudioBlob) {
-    alert('Нет записи для сохранения.');
-    return;
-  }
-  try {
-    const mp3Blob = await convertWebmToMp3(lastAudioBlob);
-    const url = URL.createObjectURL(mp3Blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `oge_var${currentVariant}_task${currentTaskIndex + 1}.mp3`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch (e) {
-    console.error('Ошибка конвертации в MP3', e);
-    alert('Не удалось конвертировать в MP3 (см. консоль).');
-  }
-});
-
-// === ПЕРЕХОД К СЛЕДУЮЩЕМУ ЗАДАНИЮ ===
-nextTaskBtn.addEventListener('click', () => {
-  currentTaskIndex++;
-  loadTask();
-});
-
-// === ФУНКЦИЯ КОНВЕРТАЦИИ WEBM -> MP3 С ПОМОЩЬЮ LAMEJS ===
-async function convertWebmToMp3(webmBlob) {
-  const arrayBuffer = await webmBlob.arrayBuffer();
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-  const channelData = audioBuffer.getChannelData(0); // mono
-  const sampleRate = audioBuffer.sampleRate;
-  const mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // 1 канал, 128 kbps
-  const sampleBlockSize = 1152;
-  const mp3Data = [];
-
-  // float32 [-1,1] -> int16
-  const samples = new Int16Array(channelData.length);
-  for (let i = 0; i < channelData.length; i++) {
-    let s = Math.max(-1, Math.min(1, channelData[i]));
-    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-
-  for (let i = 0; i < samples.length; i += sampleBlockSize) {
-    const sampleChunk = samples.subarray(i, i + sampleBlockSize);
-    const mp3buf = mp3Encoder.encodeBuffer(sampleChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
-  }
-
-  const end = mp3Encoder.flush();
-  if (end.length > 0) mp3Data.push(end);
-
-  return new Blob(mp3Data, { type: 'audio/mp3' });
-}
