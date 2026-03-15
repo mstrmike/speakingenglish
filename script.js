@@ -78,7 +78,7 @@ startExamBtn.addEventListener('click', () => {
   startOgeFlow();
 });
 
-// СЦЕНАРИЙ ОГЭ (верхнеуровневые функции)
+// ===== СЦЕНАРИЙ ОГЭ =====
 
 function startOgeFlow() {
   task1Blob  = null;
@@ -90,7 +90,7 @@ function startOgeFlow() {
 function startIntro() {
   phase = 'intro';
   phaseLabel.textContent = 'Инструкция к экзамену';
-  taskDiv.textContent    = 'Слушайте инструкцию (пока заглушка 5 секунд).';
+  taskDiv.textContent    = 'Слушайте инструкцию (заглушка 5 секунд).';
   resetButtons();
   player.style.display = 'none';
 
@@ -118,13 +118,17 @@ function startTask1Rec() {
   resetButtons();
   player.style.display = 'none';
 
-  startRecording();
+  // автостарт записи
+  startRecording(() => {
+    // колбэк после onstop
+    startTask2Intro();
+  });
+
   timeLeft = cfg.task1_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
-    startTask2Intro();
   });
 }
 
@@ -164,13 +168,15 @@ function startTask2AnswerRecording(index) {
   resetButtons();
   player.style.display = 'none';
 
-  startRecording();
+  startRecording(() => {
+    startTask2Question(index + 1);
+  });
+
   timeLeft = cfg.task2_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
-    startTask2Question(index + 1);
   });
 }
 
@@ -194,13 +200,15 @@ function startTask3Rec() {
   resetButtons();
   player.style.display = 'none';
 
-  startRecording();
+  startRecording(() => {
+    finishExam();
+  });
+
   timeLeft = cfg.task3_rec_time;
   startTimer(() => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop();
     }
-    finishExam();
   });
 }
 
@@ -212,13 +220,12 @@ function finishExam() {
   screenExam.classList.add('hidden');
   screenFinal.classList.remove('hidden');
 
-  // Активируем кнопки, если есть записи
   downloadTask1Btn.disabled = !task1Blob;
   downloadTask2Btn.disabled = task2Blobs.length !== 6;
   downloadTask3Btn.disabled = !task3Blob;
 }
 
-// ТАЙМЕР
+// ===== ТАЙМЕР =====
 
 function startTimer(onFinish) {
   clearInterval(timerInterval);
@@ -250,9 +257,10 @@ function resetButtons() {
   lastAudioBlob           = null;
 }
 
-// ЗАПИСЬ
+// ===== ЗАПИСЬ =====
+// onStoppedCallback вызывается после того, как запись сохранена (onstop)
 
-async function startRecording() {
+async function startRecording(onStoppedCallback) {
   try {
     if (currentStream) {
       currentStream.getTracks().forEach(t => t.stop());
@@ -272,13 +280,9 @@ async function startRecording() {
       if (!audioChunks.length) return;
       lastAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
-      const url = URL.createObjectURL(lastAudioBlob);
-      player.src = url;
-      player.style.display = 'block';
-
-      playRecBtn.disabled     = false;
-      downloadRecBtn.disabled = false;
-      stopRecBtn.disabled     = true;
+      // во время экзамена НЕ показываем плеер, не даём слушать
+      player.src = '';
+      player.style.display = 'none';
 
       if (currentStream) {
         currentStream.getTracks().forEach(t => t.stop());
@@ -293,67 +297,78 @@ async function startRecording() {
       } else if (phase === 'task3_rec') {
         task3Blob = lastAudioBlob;
       }
+
+      // после сохранения – вызываем переход к следующему этапу
+      if (typeof onStoppedCallback === 'function') {
+        onStoppedCallback();
+      }
     };
 
     mediaRecorder.start();
     startRecBtn.disabled    = true;
-    stopRecBtn.disabled     = false;
+    stopRecBtn.disabled     = false; // можно оставить или убрать
     playRecBtn.disabled     = true;
     downloadRecBtn.disabled = true;
-    continueBtn.disabled    = false;
+    continueBtn.disabled    = false; // "Продолжить" доступна
   } catch (err) {
     alert('Не удалось получить доступ к микрофону.');
     console.error(err);
   }
 }
 
+// РУЧНОЙ СТОП (опциональный)
 stopRecBtn.addEventListener('click', () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
   }
 });
 
+// "Продолжить" – досрочно завершает запись и сразу переводит дальше
 continueBtn.addEventListener('click', () => {
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     mediaRecorder.stop();
+    clearInterval(timerInterval);
+
+    // переход зависит от фазы
+    if (phase === 'task1_rec') {
+      // onStoppedCallback уже вызовет startTask2Intro, поэтому ничего не делаем
+    } else if (phase && phase.startsWith('task2_q')) {
+      // здесь onStoppedCallback уже вызывает startTask2Question(next)
+    } else if (phase === 'task3_rec') {
+      // onStoppedCallback вызовет finishExam
+    }
   }
 });
 
+// Плеер в процессе экзамена не используется
 playRecBtn.addEventListener('click', () => {
-  if (!lastAudioBlob) {
-    alert('Сначала запишите ответ.');
-    return;
-  }
-  player.play().catch(e => console.error(e));
+  alert('Прослушивание доступно только после экзамена.');
 });
 
-// СКАЧАТЬ ТЕКУЩУЮ ЗАПИСЬ (WEBM) С ЭКРАНА ЭКЗАМЕНА
-downloadRecBtn.addEventListener('click', () => {
-  if (!lastAudioBlob) {
-    alert('Нет записи для сохранения.');
-    return;
-  }
-  const url = URL.createObjectURL(lastAudioBlob);
-  const a   = document.createElement('a');
-  let filename = 'answer.webm';
+// ===== СКАЧИВАНИЕ НА ФИНАЛЬНОМ ЭКРАНЕ (WEBM) =====
 
-  if (phase === 'task1_rec') {
-    filename = 'oge_task1.webm';
-  } else if (phase && phase.startsWith('task2_q')) {
-    const idx = task2Blobs.length;
-    filename  = `oge_task2_q${idx}.webm`;
-  } else if (phase === 'task3_rec') {
-    filename = 'oge_task3.webm';
-  }
-
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+downloadTask1Btn.addEventListener('click', () => {
+  if (!task1Blob) return;
+  downloadBlob(task1Blob, 'oge_task1.webm');
 });
 
-// ВСПОМОГАТЕЛЬНО: СКАЧАТЬ BLOB (будет использоваться позже для MP3)
+downloadTask2Btn.addEventListener('click', () => {
+  if (task2Blobs.length !== 6) {
+    alert('Записаны не все 6 ответов задания 2.');
+    return;
+  }
+  // Пока просто скачиваем 6 отдельных файлов вебм
+  task2Blobs.forEach((blob, index) => {
+    downloadBlob(blob, `oge_task2_q${index + 1}.webm`);
+  });
+});
+
+downloadTask3Btn.addEventListener('click', () => {
+  if (!task3Blob) return;
+  downloadBlob(task3Blob, 'oge_task3.webm');
+});
+
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ СКАЧИВАНИЯ BLOB
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a   = document.createElement('a');
