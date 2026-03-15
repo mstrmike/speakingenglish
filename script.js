@@ -1,4 +1,4 @@
-// Общие DOM-элементы (один раз)
+// Общие DOM-элементы
 const screenStart = document.getElementById('screen-start');
 const screenExam  = document.getElementById('screen-exam');
 const screenFinal = document.getElementById('screen-final');
@@ -6,9 +6,10 @@ const screenFinal = document.getElementById('screen-final');
 const lastNameInput  = document.getElementById('lastName');
 const firstNameInput = document.getElementById('firstName');
 const classNameInput = document.getElementById('className');
-const examSelect     = document.getElementById('examSelect');
-const variantSelect  = document.getElementById('variantSelect');
-const startExamBtn   = document.getElementById('startExamBtn');
+
+const examSelect    = document.getElementById('examSelect');
+const variantSelect = document.getElementById('variantSelect');
+const startExamBtn  = document.getElementById('startExamBtn');
 
 const examTitle      = document.getElementById('examTitle');
 const phaseLabel     = document.getElementById('phaseLabel');
@@ -20,11 +21,11 @@ const questionPlayer = document.getElementById('questionPlayer');
 const playDownload1Btn = document.getElementById('playDownload1Btn');
 const playDownload2Btn = document.getElementById('playDownload2Btn');
 const playDownload3Btn = document.getElementById('playDownload3Btn');
-const playDownload4Btn = document.getElementById('playDownload4Btn'); // для ЕГЭ 4 задания
+const playDownload4Btn = document.getElementById('playDownload4Btn');
 const finalPlayer      = document.getElementById('finalPlayer');
 const backBtn          = document.getElementById('backBtn');
 
-// Глобальные данные о студенте и выбранном варианте
+// состояние выбора
 let studentLastName  = '';
 let studentFirstName = '';
 let studentClass     = '';
@@ -32,28 +33,25 @@ let currentExam      = 'oge';
 let currentVariant   = 1;
 let currentConfig    = null;
 
-// Текущий "движок" экзамена (объект OgeEngine или EgeEngine)
+// текущий движок
 let examEngine = null;
 
-// ==== заполняем варианты по экзамену ====
-
+// заполнение вариантов
 function populateVariants() {
-  const examKey = examSelect.value; // 'oge' | 'ege'
-  const examBank = TASK_BANK[examKey] || {};
+  const examKey = examSelect.value;
+  const bank = TASK_BANK[examKey] || {};
   variantSelect.innerHTML = '';
-  Object.keys(examBank).forEach(v => {
+  Object.keys(bank).forEach(v => {
     const opt = document.createElement('option');
     opt.value = v;
     opt.textContent = `Вариант ${v}`;
     variantSelect.appendChild(opt);
   });
 }
-
 examSelect.addEventListener('change', populateVariants);
 populateVariants();
 
-// ==== старт экзамена ====
-
+// старт экзамена
 startExamBtn.addEventListener('click', async () => {
   studentLastName  = (lastNameInput.value  || '').trim();
   studentFirstName = (firstNameInput.value || '').trim();
@@ -64,22 +62,21 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  currentExam    = examSelect.value;          // 'oge' или 'ege'
+  currentExam    = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10) || 1;
 
-  const examBank = TASK_BANK[currentExam];
-  if (!examBank || !examBank[currentVariant]) {
+  const bank = TASK_BANK[currentExam];
+  if (!bank || !bank[currentVariant]) {
     alert('Для выбранного экзамена и варианта нет заданий.');
     return;
   }
-  currentConfig = examBank[currentVariant];
+  currentConfig = bank[currentVariant];
 
-  // запрос микрофона один раз, дальше движки используют общий stream
   let micStream;
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    alert('Нет доступа к микрофону. Разрешите использование микрофона и попробуйте снова.');
+    alert('Нет доступа к микрофону. Разрешите использование микрофона.');
     console.error(e);
     return;
   }
@@ -90,8 +87,7 @@ startExamBtn.addEventListener('click', async () => {
   screenExam.classList.remove('hidden');
   screenFinal.classList.add('hidden');
 
-  // создаём нужный движок
-  const sharedContext = {
+  const ctx = {
     screenExam,
     screenFinal,
     examTitle,
@@ -116,36 +112,36 @@ startExamBtn.addEventListener('click', async () => {
   };
 
   if (currentExam === 'oge') {
-    examEngine = new OgeEngine(sharedContext);
+    examEngine = new OgeEngine(ctx);
   } else {
-    examEngine = new EgeEngine(sharedContext);
+    examEngine = new EgeEngine(ctx);
   }
-
   examEngine.start();
 });
 
-// проброс кликов с общей кнопки в движок
 actionBtn.addEventListener('click', () => {
   if (examEngine && typeof examEngine.handleAction === 'function') {
     examEngine.handleAction();
   }
 });
 
-// кнопки финала → в движок
-playDownload1Btn.addEventListener('click', () => examEngine && examEngine.playDownloadTask1());
-playDownload2Btn.addEventListener('click', () => examEngine && examEngine.playDownloadTask2());
-playDownload3Btn.addEventListener('click', () => examEngine && examEngine.playDownloadTask3());
-if (playDownload4Btn) {
-  playDownload4Btn.addEventListener('click', () => examEngine && examEngine.playDownloadTask4 && examEngine.playDownloadTask4());
-}
+playDownload1Btn.addEventListener('click', () => {
+  examEngine && examEngine.playDownloadTask1 && examEngine.playDownloadTask1();
+});
+playDownload2Btn.addEventListener('click', () => {
+  examEngine && examEngine.playDownloadTask2 && examEngine.playDownloadTask2();
+});
+playDownload3Btn.addEventListener('click', () => {
+  examEngine && examEngine.playDownloadTask3 && examEngine.playDownloadTask3();
+});
+playDownload4Btn.addEventListener('click', () => {
+  examEngine && examEngine.playDownloadTask4 && examEngine.playDownloadTask4();
+});
 
-// возврат на старт
 backBtn.addEventListener('click', () => {
-  if (examEngine && typeof examEngine.reset === 'function') {
-    examEngine.reset();
-  }
+  if (examEngine && examEngine.reset) examEngine.reset();
+  examEngine = null;
   screenFinal.classList.add('hidden');
   screenStart.classList.remove('hidden');
   finalPlayer.src = '';
-  examEngine = null;
 });
