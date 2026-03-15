@@ -18,6 +18,7 @@ const timerDiv       = document.getElementById('timer');
 const actionBtn      = document.getElementById('actionBtn');
 const questionPlayer = document.getElementById('questionPlayer');
 const beepPlayer     = document.getElementById('beepPlayer');
+const startSpeakingPlayer = document.getElementById('startSpeakingPlayer');
 
 const playDownload1Btn = document.getElementById('playDownload1Btn');
 const playDownload2Btn = document.getElementById('playDownload2Btn');
@@ -96,6 +97,7 @@ startExamBtn.addEventListener('click', async () => {
     actionBtn,
     questionPlayer,
     beepPlayer,
+    startSpeakingPlayer,
     playDownload1Btn,
     playDownload2Btn,
     playDownload3Btn,
