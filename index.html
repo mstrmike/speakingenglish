@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тренажёр устной части (3 задания)</title>
+  <title>Тренажёр устной части (ОГЭ/ЕГЭ)</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
     h1, h2 { text-align: center; }
@@ -51,7 +51,7 @@
       <label>
         Вариант:
         <select id="variantSelect">
-          <option value="1">Вариант 1</option>
+          <!-- заполняется из TASK_BANK -->
         </select>
       </label>
     </div>
@@ -70,6 +70,10 @@
 
     <div id="task"></div>
 
+    <div class="center">
+      <audio id="questionPlayer" controls style="width:100%; display:none;"></audio>
+    </div>
+
     <div id="timer">00:00</div>
 
     <div class="center">
@@ -86,7 +90,7 @@
         <button id="playDownload1Btn" disabled>Задание 1</button>
       </div>
       <div>
-        <button id="playDownload2Btn" disabled>Задание 2</button>
+        <button id="playDownload2Btn" disabled>Задание 2 (6 ответов)</button>
       </div>
       <div>
         <button id="playDownload3Btn" disabled>Задание 3</button>
@@ -100,6 +104,7 @@
     </div>
   </div>
 
+  <script src="tasks.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
