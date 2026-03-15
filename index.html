@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Мини-тренажёр устной части</title>
+  <title>Тренажёр устной части (3 задания)</title>
   <style>
     body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
     h1, h2 { text-align: center; }
@@ -19,7 +19,7 @@
 <body>
   <!-- ЭКРАН 1: СТАРТ -->
   <div id="screen-start">
-    <h1>Мини-тренажёр устной части</h1>
+    <h1>Тренажёр устной части</h1>
     <div class="center">
       <label>
         Фамилия:
@@ -63,7 +63,7 @@
     </p>
   </div>
 
-  <!-- ЭКРАН 2: ЭКЗАМЕН (одно задание) -->
+  <!-- ЭКРАН 2: ЭКЗАМЕН -->
   <div id="screen-exam" class="hidden">
     <h2 id="examTitle"></h2>
     <div id="phaseLabel" class="center"></div>
@@ -79,10 +79,18 @@
 
   <!-- ЭКРАН 3: ФИНАЛ -->
   <div id="screen-final" class="hidden">
-    <h2>Задание завершено</h2>
+    <h2>Экзамен завершён</h2>
     <div class="center">
-      <p>Прослушайте и скачайте запись:</p>
-      <button id="playDownloadBtn" disabled>Прослушать и скачать MP3</button>
+      <p>Прослушайте и скачайте записи:</p>
+      <div>
+        <button id="playDownload1Btn" disabled>Задание 1</button>
+      </div>
+      <div>
+        <button id="playDownload2Btn" disabled>Задание 2</button>
+      </div>
+      <div>
+        <button id="playDownload3Btn" disabled>Задание 3</button>
+      </div>
     </div>
     <div class="center" style="margin-top:20px;">
       <audio id="finalPlayer" controls style="width:100%;"></audio>
