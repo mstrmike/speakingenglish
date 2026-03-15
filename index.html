@@ -2,26 +2,24 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тренажёр устной части ОГЭ/ЕГЭ</title>
+  <title>Мини-тренажёр устной части</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; }
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; }
     h1, h2 { text-align: center; }
     #timer { font-size: 3rem; color: darkred; margin: 10px 0; text-align: center; }
     button { padding: 8px 16px; margin: 5px; }
     #task { margin: 15px 0; font-size: 1.2rem; border: 1px solid #ccc; padding: 10px; min-height: 60px; white-space: pre-wrap; }
     .hidden { display: none; }
-    .controls { margin-top: 10px; text-align: center; }
     .center { text-align: center; }
     label { display: inline-block; margin: 5px 0; }
-    input[type="text"], input[type="email"] { padding: 4px 8px; width: 220px; }
+    input[type="text"] { padding: 4px 8px; width: 220px; }
   </style>
-  <!-- LameJS для конвертации в MP3 -->
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 </head>
 <body>
   <!-- ЭКРАН 1: СТАРТ -->
   <div id="screen-start">
-    <h1>Тренажёр устной части ОГЭ/ЕГЭ</h1>
+    <h1>Мини-тренажёр устной части</h1>
     <div class="center">
       <label>
         Фамилия:
@@ -58,63 +56,39 @@
       </label>
     </div>
     <div class="center" style="margin-top:20px;">
-      <button id="startExamBtn">Начать экзамен</button>
+      <button id="startExamBtn">Начать</button>
     </div>
     <p class="center" style="color:#666; margin-top:10px;">
-      Перед началом экзамен запросит доступ к микрофону.
+      Перед началом тренажёр запросит доступ к микрофону.
     </p>
   </div>
 
-  <!-- ЭКРАН 2: ЭКЗАМЕН -->
+  <!-- ЭКРАН 2: ЭКЗАМЕН (одно задание) -->
   <div id="screen-exam" class="hidden">
     <h2 id="examTitle"></h2>
     <div id="phaseLabel" class="center"></div>
 
     <div id="task"></div>
 
-    <div class="center">
-      <audio id="instructionPlayer" controls style="width:100%; display:none;"></audio>
-    </div>
-
     <div id="timer">00:00</div>
 
-    <div class="controls">
-      <button id="finishBtn" disabled>Завершить</button>
+    <div class="center">
+      <button id="actionBtn" disabled>...</button>
     </div>
   </div>
 
   <!-- ЭКРАН 3: ФИНАЛ -->
   <div id="screen-final" class="hidden">
-    <h2>Экзамен завершён</h2>
+    <h2>Задание завершено</h2>
     <div class="center">
-      <p>Прослушайте и скачайте записи:</p>
-      <div>
-        <button id="task1PlayDownloadBtn" disabled>Задание 1: прослушать и скачать MP3</button>
-      </div>
-      <div>
-        <button id="task2PlayDownloadBtn" disabled>Задание 2: прослушать и скачать MP3 (6 ответов)</button>
-      </div>
-      <div>
-        <button id="task3PlayDownloadBtn" disabled>Задание 3: прослушать и скачать MP3</button>
-      </div>
-
-      <div style="margin-top:20px;">
-        <label>
-          E-mail учителя:
-          <input type="email" id="teacherEmail" placeholder="teacher@example.com">
-        </label>
-      </div>
-      <div>
-        <button id="sendTeacherBtn" disabled>Отправить учителю</button>
-      </div>
-
-      <div style="margin-top:20px;">
-        <button id="backToStartBtn">Вернуться к выбору экзамена</button>
-      </div>
+      <p>Прослушайте и скачайте запись:</p>
+      <button id="playDownloadBtn" disabled>Прослушать и скачать MP3</button>
     </div>
-
     <div class="center" style="margin-top:20px;">
       <audio id="finalPlayer" controls style="width:100%;"></audio>
+    </div>
+    <div class="center" style="margin-top:20px;">
+      <button id="backBtn">Вернуться на старт</button>
     </div>
   </div>
 
