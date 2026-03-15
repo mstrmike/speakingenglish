@@ -6,28 +6,32 @@ const screenFinal = document.getElementById('screen-final');
 // ЭЛЕМЕНТЫ СТАРТА
 const lastNameInput  = document.getElementById('lastName');
 const firstNameInput = document.getElementById('firstName');
+const classNameInput = document.getElementById('className');
 const examSelect     = document.getElementById('examSelect');
 const variantSelect  = document.getElementById('variantSelect');
 const startExamBtn   = document.getElementById('startExamBtn');
 
 // ЭЛЕМЕНТЫ ЭКЗАМЕНА
-const examTitle   = document.getElementById('examTitle');
-const phaseLabel  = document.getElementById('phaseLabel');
-const taskDiv     = document.getElementById('task');
-const instrAudio  = document.getElementById('instructionPlayer');
-const timerDiv    = document.getElementById('timer');
-const finishBtn   = document.getElementById('finishBtn');
+const examTitle  = document.getElementById('examTitle');
+const phaseLabel = document.getElementById('phaseLabel');
+const taskDiv    = document.getElementById('task');
+const instrAudio = document.getElementById('instructionPlayer');
+const timerDiv   = document.getElementById('timer');
+const finishBtn  = document.getElementById('finishBtn');
 
 // ЭЛЕМЕНТЫ ФИНАЛА
 const task1PlayDownloadBtn = document.getElementById('task1PlayDownloadBtn');
 const task2PlayDownloadBtn = document.getElementById('task2PlayDownloadBtn');
 const task3PlayDownloadBtn = document.getElementById('task3PlayDownloadBtn');
+const teacherEmailInput    = document.getElementById('teacherEmail');
 const sendTeacherBtn       = document.getElementById('sendTeacherBtn');
+const backToStartBtn       = document.getElementById('backToStartBtn');
 const finalPlayer          = document.getElementById('finalPlayer');
 
 // СОСТОЯНИЕ
 let studentFirstName = '';
 let studentLastName  = '';
+let studentClass     = '';
 let currentExam      = 'oge';
 let currentVariant   = 1;
 
@@ -56,7 +60,7 @@ const ogeConfig = {
     task1Text:  'Задание 1. Прочитайте текст вслух (заглушка).',
     task1Prep:  10,
     task1Rec:   15,
-    task2Info:  'Задание 2. Вы услышите 6 вопросов. После каждого — 5 секунд на ответ (заглушка).',
+    task2Info:  'Задание 2. Вы услышите 6 вопросов. После каждого — время на ответ (заглушка).',
     task2PrepGap: 3,
     task2Rec:   5,
     task3Text:  'Задание 3. Подготовьте монолог по плану (заглушка).',
@@ -68,18 +72,19 @@ const ogeConfig = {
 // ===== НАЧАЛО ЭКЗАМЕНА =====
 
 startExamBtn.addEventListener('click', async () => {
-  studentLastName  = (lastNameInput.value || '').trim();
+  studentLastName  = (lastNameInput.value  || '').trim();
   studentFirstName = (firstNameInput.value || '').trim();
+  studentClass     = (classNameInput.value || '').trim();
 
-  if (!studentLastName || !studentFirstName) {
-    alert('Пожалуйста, введите фамилию и имя.');
+  if (!studentLastName || !studentFirstName || !studentClass) {
+    alert('Пожалуйста, введите фамилию, имя и класс.');
     return;
   }
 
   currentExam    = examSelect.value;
   currentVariant = parseInt(variantSelect.value, 10);
 
-  // Запрос микрофона один раз
+  // Запрос микрофона один раз перед экзаменом
   try {
     if (micStream) {
       micStream.getTracks().forEach(t => t.stop());
@@ -111,7 +116,6 @@ function startOgeFlow() {
   task3Blob  = null;
   currentQIndex = 0;
   finalPlayer.src = '';
-
   startIntro();
 }
 
@@ -123,6 +127,8 @@ function startIntro() {
   taskDiv.textContent    = cfg.introText;
   instrAudio.style.display = 'none';
   resetExamButtons();
+
+  setFinishLabel(); // текст кнопки
 
   timeLeft = cfg.introTime;
   startTimer(startTask1Prep);
@@ -137,6 +143,8 @@ function startTask1Prep() {
   instrAudio.style.display = 'none';
   resetExamButtons();
 
+  setFinishLabel(); // "Сразу перейти к записи"
+
   timeLeft = cfg.task1Prep;
   startTimer(startTask1Rec);
 }
@@ -149,6 +157,8 @@ function startTask1Rec() {
   taskDiv.textContent    = 'Читайте текст вслух. Идёт запись.';
   instrAudio.style.display = 'none';
   resetExamButtons();
+
+  setFinishLabel(); // "Закончить задание"
 
   startRecording(blob => {
     task1Blob = blob;
@@ -172,6 +182,8 @@ function startTask2Intro() {
   instrAudio.style.display = 'none';
   resetExamButtons();
 
+  setFinishLabel(); // "Сразу перейти к записи" (к первому вопросу)
+
   currentQIndex = 0;
   timeLeft = 5;
   startTimer(() => startTask2QuestionPrep(0));
@@ -192,6 +204,8 @@ function startTask2QuestionPrep(index) {
   instrAudio.style.display = 'none';
   resetExamButtons();
 
+  setFinishLabel(); // "Сразу перейти к записи"
+
   timeLeft = cfg.task2PrepGap;
   startTimer(() => startTask2QuestionRec(index));
 }
@@ -204,6 +218,8 @@ function startTask2QuestionRec(index) {
   taskDiv.textContent    = `Говорите. Время на ответ ${cfg.task2Rec} секунд.`;
   instrAudio.style.display = 'none';
   resetExamButtons();
+
+  setFinishLabel(); // "Закончить задание"
 
   startRecording(blob => {
     task2Blobs.push(blob);
@@ -227,6 +243,8 @@ function startTask3Prep() {
   instrAudio.style.display = 'none';
   resetExamButtons();
 
+  setFinishLabel(); // "Сразу перейти к записи"
+
   timeLeft = cfg.task3Prep;
   startTimer(startTask3Rec);
 }
@@ -239,6 +257,8 @@ function startTask3Rec() {
   taskDiv.textContent    = 'Говорите монолог. Идёт запись.';
   instrAudio.style.display = 'none';
   resetExamButtons();
+
+  setFinishLabel(); // "Закончить задание"
 
   startRecording(blob => {
     task3Blob = blob;
@@ -266,7 +286,10 @@ function finishExam() {
   task1PlayDownloadBtn.disabled = !task1Blob;
   task2PlayDownloadBtn.disabled = task2Blobs.length !== 6;
   task3PlayDownloadBtn.disabled = !task3Blob;
-  sendTeacherBtn.disabled       = !(task1Blob && task3Blob && task2Blobs.length === 6);
+
+  sendTeacherBtn.disabled = !(task1Blob && task3Blob && task2Blobs.length === 6);
+
+  finalPlayer.src = '';
 }
 
 // ===== ТАЙМЕР =====
@@ -274,7 +297,6 @@ function finishExam() {
 function startTimer(onFinish) {
   clearInterval(timerInterval);
   updateTimerDisplay();
-  finishBtn.disabled = false; // "Закончить задание" активна на любом таймере
   timerInterval = setInterval(() => {
     timeLeft--;
     updateTimerDisplay();
@@ -294,7 +316,16 @@ function updateTimerDisplay() {
 function resetExamButtons() {
   clearInterval(timerInterval);
   timerDiv.textContent = '00:00';
-  finishBtn.disabled   = false; // можно всегда досрочно завершить этап
+  finishBtn.disabled   = false;
+}
+
+function setFinishLabel() {
+  // На фазах подготовки – "Сразу перейти к записи", на записях – "Закончить задание"
+  if (phase && (phase.endsWith('_prep') || phase === 'intro' || phase === 'task2_intro')) {
+    finishBtn.textContent = 'Сразу перейти к записи';
+  } else {
+    finishBtn.textContent = 'Закончить задание';
+  }
 }
 
 // ===== ЗАПИСЬ =====
@@ -302,7 +333,6 @@ function resetExamButtons() {
 // Запуск записи; callback получает webm blob после остановки
 async function startRecording(onStopped) {
   try {
-    // Переназначаем поток микрофона, если нужно
     if (!micStream) {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     }
@@ -326,9 +356,9 @@ async function startRecording(onStopped) {
   }
 }
 
-// "Закончить задание"
+// Логика кнопки "Сразу перейти к записи" / "Закончить задание"
 finishBtn.addEventListener('click', () => {
-  // 1) если фаза подготовки – перейти сразу к записи
+  // 1) фазы подготовки: сразу перейти к записи
   if (phase === 'intro') {
     startTask1Prep();
     return;
@@ -342,7 +372,6 @@ finishBtn.addEventListener('click', () => {
     return;
   }
   if (phase && phase.endsWith('_prep')) {
-    // task2_qX_prep
     startTask2QuestionRec(currentQIndex);
     return;
   }
@@ -351,14 +380,14 @@ finishBtn.addEventListener('click', () => {
     return;
   }
 
-  // 2) если идёт запись – досрочно остановить, переход сделает onstop
+  // 2) фазы записи: досрочно остановить запись, переход сделает onstop
   if (mediaRecorder && mediaRecorder.state === 'recording') {
     clearInterval(timerInterval);
     mediaRecorder.stop();
   }
 });
 
-// ===== МP3 КОНВЕРТАЦИЯ =====
+// ===== MP3 КОНВЕРТАЦИЯ =====
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -440,13 +469,16 @@ async function convertMultipleWebmToMp3(webmBlobs) {
   return new Blob(mp3Data, { type: 'audio/mp3' });
 }
 
-// ===== ФИНАЛ: ПРОСЛУШКА + СКАЧИВАНИЕ =====
+// ===== ФИО + КЛАСС В ИМЯХ ФАЙЛОВ =====
 
 function fioPrefix() {
   const ln = studentLastName  || 'Student';
   const fn = studentFirstName || 'Name';
-  return `${ln}_${fn}`;
+  const cl = studentClass     || 'Class';
+  return `${ln}_${fn}_${cl}`;
 }
+
+// ===== ФИНАЛ: ПРОСЛУШКА + СКАЧИВАНИЕ =====
 
 task1PlayDownloadBtn.addEventListener('click', async () => {
   if (!task1Blob) return;
@@ -475,15 +507,23 @@ task3PlayDownloadBtn.addEventListener('click', async () => {
   downloadBlob(mp3, `${fioPrefix()}_task3.mp3`);
 });
 
-// Псевдо-отправка учителю через mailto
+// Псевдо-отправка учителю через mailto с адресом из поля
 sendTeacherBtn.addEventListener('click', () => {
-  const ln = encodeURIComponent(studentLastName);
-  const fn = encodeURIComponent(studentFirstName);
-  const subject = encodeURIComponent(`Аудио ответов ОГЭ/${currentExam.toUpperCase()}: ${studentLastName} ${studentFirstName}`);
+  const email = (teacherEmailInput.value || '').trim();
+  if (!email) {
+    alert('Введите e-mail учителя.');
+    return;
+  }
+
+  const subject = encodeURIComponent(
+    `Аудио ответов ${currentExam.toUpperCase()}: ${studentLastName} ${studentFirstName}, ${studentClass}`
+  );
+
   const body = encodeURIComponent(
     `Здравствуйте!\n\n` +
-    `Отправляю аудиозаписи устной части.\n` +
+    `Отправляю аудиозаписи устной части.\n\n` +
     `Фамилия, имя: ${studentLastName} ${studentFirstName}\n` +
+    `Класс: ${studentClass}\n` +
     `Экзамен: ${currentExam.toUpperCase()}, вариант ${currentVariant}\n\n` +
     `Файлы для прикрепления (вы уже скачали их на компьютер):\n` +
     `- ${fioPrefix()}_task1.mp3\n` +
@@ -492,6 +532,13 @@ sendTeacherBtn.addEventListener('click', () => {
     `С уважением,\n${studentFirstName}`
   );
 
-  const teacherEmail = 'mstrmike@yandex.ru'; // ЗАМЕНИТЕ на свой e-mail
-  window.location.href = `mailto:${teacherEmail}?subject=${subject}&body=${body}`;
+  window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+});
+
+// Вернуться к выбору экзамена
+backToStartBtn.addEventListener('click', () => {
+  screenFinal.classList.add('hidden');
+  screenStart.classList.remove('hidden');
+  // сброс состояния плеера, полей учителя и т.п. при необходимости
+  finalPlayer.src = '';
 });
