@@ -7,12 +7,13 @@ class EgeEngine {
     this.timeLeft      = 0;
     this.questionIndex = 0;
 
+    this.micStream     = ctx.micStream;
     this.mediaRecorder = null;
     this.audioChunks   = [];
 
     this.task1Blob  = null;
-    this.task2Blobs = []; // 4 ответа
-    this.task3Blobs = []; // 5 ответов по вопросам
+    this.task2Blobs = []; // 4 вопроса
+    this.task3Blobs = []; // 5 ответов
     this.task4Blob  = null;
   }
 
@@ -20,13 +21,11 @@ class EgeEngine {
     this.startIntro();
   }
 
-  // ===== таймер =====
   updateTimer() {
     const m = Math.floor(this.timeLeft / 60);
     const s = this.timeLeft % 60;
     this.timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
-
   resetTimer() {
     if (this.timer) {
       clearInterval(this.timer);
@@ -34,7 +33,6 @@ class EgeEngine {
     }
   }
 
-  // ===== запись =====
   async startRecording(onStopped) {
     try {
       this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
@@ -51,13 +49,12 @@ class EgeEngine {
 
       this.mediaRecorder.start();
     } catch (e) {
-      alert('Ошибка доступа к микрофону во время записи.');
+      alert('Ошибка доступа к микрофону.');
       console.error(e);
     }
   }
 
-  // ===== фазы ЕГЭ =====
-
+  // фазы ЕГЭ
   startIntro() {
     this.phase = 'intro';
     this.phaseLabel.textContent = 'Инструкция';
@@ -65,7 +62,7 @@ class EgeEngine {
     this.timeLeft = this.config.introTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к заданию 1';
+    this.actionBtn.textContent = 'Сразу к заданию 1';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -78,7 +75,7 @@ class EgeEngine {
     }, 1000);
   }
 
-  // === Задание 1: чтение текста ===
+  // 1: чтение
   startTask1Prep() {
     this.phase = 'task1_prep';
     this.phaseLabel.textContent = 'Задание 1: подготовка';
@@ -86,7 +83,7 @@ class EgeEngine {
     this.timeLeft = this.config.task1.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Сразу к записи';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -110,7 +107,7 @@ class EgeEngine {
 
     this.startRecording(blob => {
       this.task1Blob = blob;
-      this.startTask2Prep();
+      this.startTask2Intro();
     });
 
     this.resetTimer();
@@ -126,15 +123,15 @@ class EgeEngine {
     }, 1000);
   }
 
-  // === Задание 2: 4 вопроса подряд, потом склейка ===
-  startTask2Prep() {
-    this.phase = 'task2_prep_intro';
+  // 2: 4 вопроса по ключевым словам
+  startTask2Intro() {
+    this.phase = 'task2_intro';
     this.phaseLabel.textContent = 'Задание 2';
     this.taskDiv.textContent    = this.config.task2.infoText;
     this.timeLeft = 5;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к вопросам';
+    this.actionBtn.textContent = 'К вопросу 1';
 
     this.task2Blobs = [];
     this.questionIndex = 0;
@@ -161,7 +158,7 @@ class EgeEngine {
     this.phaseLabel.textContent = `Задание 2: вопрос ${n}/4`;
     this.taskDiv.textContent    = this.config.task2.questionText.replace('{n}', n);
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Сразу к записи';
 
     this.resetTimer();
     this.timerDiv.textContent = '';
@@ -231,7 +228,7 @@ class EgeEngine {
     }, 1000);
   }
 
-  // === Задание 3: 5 вопросов, как ОГЭ‑task2 ===
+  // 3: 5 вопросов
   startTask3Intro() {
     this.phase = 'task3_intro';
     this.phaseLabel.textContent = 'Задание 3';
@@ -239,7 +236,7 @@ class EgeEngine {
     this.timeLeft = 5;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к вопросу 1';
+    this.actionBtn.textContent = 'К вопросу 1';
 
     this.task3Blobs = [];
     this.questionIndex = 0;
@@ -269,7 +266,7 @@ class EgeEngine {
     this.phaseLabel.textContent = `Задание 3: вопрос ${n}/5`;
     this.taskDiv.textContent    = this.config.task3.questionText.replace('{n}', n);
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Сразу к записи';
 
     this.resetTimer();
     this.timerDiv.textContent = '';
@@ -339,7 +336,7 @@ class EgeEngine {
     }, 1000);
   }
 
-  // === Задание 4: монолог ===
+  // 4: монолог
   startTask4Prep() {
     this.phase = 'task4_prep';
     this.phaseLabel.textContent = 'Задание 4: подготовка';
@@ -347,7 +344,7 @@ class EgeEngine {
     this.timeLeft = this.config.task4.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Сразу к записи';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -371,7 +368,7 @@ class EgeEngine {
 
     this.startRecording(blob => {
       this.task4Blob = blob;
-      this.finish();
+      this.finish();  // критически важно – завершаем ЕГЭ
     });
 
     this.resetTimer();
@@ -399,31 +396,21 @@ class EgeEngine {
     this.playDownload1Btn.disabled = !this.task1Blob;
     this.playDownload2Btn.disabled = this.task2Blobs.length !== 4;
     this.playDownload3Btn.disabled = this.task3Blobs.length !== 5;
-    if (this.playDownload4Btn) this.playDownload4Btn.disabled = !this.task4Blob;
+    this.playDownload4Btn.disabled = !this.task4Blob;
 
     this.finalPlayer.src = '';
   }
 
-  // ===== обработка общей кнопки действия =====
   handleAction() {
     switch (this.phase) {
-      case 'intro':
-        this.resetTimer();
-        this.startTask1Prep();
-        break;
-      case 'task1_prep':
-        this.resetTimer();
-        this.startTask1Rec();
-        break;
+      case 'intro':        this.resetTimer(); this.startTask1Prep(); break;
+      case 'task1_prep':   this.resetTimer(); this.startTask1Rec();  break;
       case 'task1_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task2_prep_intro':
-        this.resetTimer();
-        this.startTask2QuestionPrep(0);
-        break;
+      case 'task2_intro':  this.resetTimer(); this.startTask2QuestionPrep(0); break;
       case 'task2_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
@@ -436,10 +423,7 @@ class EgeEngine {
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task3_intro':
-        this.resetTimer();
-        this.startTask3QuestionPrep(0);
-        break;
+      case 'task3_intro':  this.resetTimer(); this.startTask3QuestionPrep(0); break;
       case 'task3_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
@@ -452,10 +436,7 @@ class EgeEngine {
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
-      case 'task4_prep':
-        this.resetTimer();
-        this.startTask4Rec();
-        break;
+      case 'task4_prep':   this.resetTimer(); this.startTask4Rec(); break;
       case 'task4_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -463,14 +444,13 @@ class EgeEngine {
     }
   }
 
-  // ===== mp3 конвертация (как в ОГЭ) =====
+  // mp3
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
     const cl = this.studentClass     || 'Class';
     return `${ln}_${fn}_${cl}_var${this.currentVariant}`;
   }
-
   downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
@@ -480,7 +460,6 @@ class EgeEngine {
     a.click();
     document.body.removeChild(a);
   }
-
   async convertWebmToMp3(webmBlob) {
     const arrayBuffer  = await webmBlob.arrayBuffer();
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -508,7 +487,6 @@ class EgeEngine {
 
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
-
   async convertMultipleWebmToMp3(webmBlobs) {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const buffers      = [];
@@ -551,16 +529,14 @@ class EgeEngine {
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
 
-  // ===== кнопки финала =====
   async playDownloadTask1() {
     if (!this.task1Blob) return;
     const mp3 = await this.convertWebmToMp3(this.task1Blob);
     const url = URL.createObjectURL(mp3);
     this.finalPlayer.src = url;
     this.finalPlayer.play().catch(console.error);
-    this.downloadBlob(mp3, `${this.fioPrefix()}_task1_reading.mp3`);
+    this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task1_reading.mp3`);
   }
-
   async playDownloadTask2() {
     if (this.task2Blobs.length !== 4) {
       alert('Записаны не все 4 вопроса задания 2.');
@@ -570,9 +546,8 @@ class EgeEngine {
     const url = URL.createObjectURL(mp3);
     this.finalPlayer.src = url;
     this.finalPlayer.play().catch(console.error);
-    this.downloadBlob(mp3, `${this.fioPrefix()}_task2_questions4.mp3`);
+    this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task2_questions4.mp3`);
   }
-
   async playDownloadTask3() {
     if (this.task3Blobs.length !== 5) {
       alert('Записаны не все 5 ответов задания 3.');
@@ -582,16 +557,15 @@ class EgeEngine {
     const url = URL.createObjectURL(mp3);
     this.finalPlayer.src = url;
     this.finalPlayer.play().catch(console.error);
-    this.downloadBlob(mp3, `${this.fioPrefix()}_task3_answers5.mp3`);
+    this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task3_answers5.mp3`);
   }
-
   async playDownloadTask4() {
     if (!this.task4Blob) return;
     const mp3 = await this.convertWebmToMp3(this.task4Blob);
     const url = URL.createObjectURL(mp3);
     this.finalPlayer.src = url;
     this.finalPlayer.play().catch(console.error);
-    this.downloadBlob(mp3, `${this.fioPrefix()}_task4_monologue.mp3`);
+    this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task4_monologue.mp3`);
   }
 
   reset() {
