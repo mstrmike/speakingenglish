@@ -17,6 +17,7 @@ const taskDiv        = document.getElementById('task');
 const timerDiv       = document.getElementById('timer');
 const actionBtn      = document.getElementById('actionBtn');
 const questionPlayer = document.getElementById('questionPlayer');
+const beepPlayer     = document.getElementById('beepPlayer');
 
 const playDownload1Btn = document.getElementById('playDownload1Btn');
 const playDownload2Btn = document.getElementById('playDownload2Btn');
@@ -25,7 +26,6 @@ const playDownload4Btn = document.getElementById('playDownload4Btn');
 const finalPlayer      = document.getElementById('finalPlayer');
 const backBtn          = document.getElementById('backBtn');
 
-// состояние выбора
 let studentLastName  = '';
 let studentFirstName = '';
 let studentClass     = '';
@@ -33,7 +33,6 @@ let currentExam      = 'oge';
 let currentVariant   = 1;
 let currentConfig    = null;
 
-// текущий движок
 let examEngine = null;
 
 // заполнение вариантов
@@ -96,6 +95,7 @@ startExamBtn.addEventListener('click', async () => {
     timerDiv,
     actionBtn,
     questionPlayer,
+    beepPlayer,
     playDownload1Btn,
     playDownload2Btn,
     playDownload3Btn,
