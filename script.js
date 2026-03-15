@@ -1,11 +1,10 @@
 // ===== НАСТРОЙКА ДОСТУПА =====
 
-// Пока просто флаг. Потом здесь можно будет подставлять результат проверки кода / подписки.
-let isPremiumUser = false;
+// Пример секретного кода. Поменяй на свой.
+const PREMIUM_ACCESS_CODE = 'SPEAK2026';
 
-// Пример: временно включить премиум для теста
-// isPremiumUser = true;
-
+// читаем статус из localStorage
+let isPremiumUser = localStorage.getItem('isPremiumUser') === 'true';
 
 // ===== DOM-элементы =====
 
@@ -36,6 +35,17 @@ const playDownload3Btn = document.getElementById('playDownload3Btn');
 const playDownload4Btn = document.getElementById('playDownload4Btn');
 const finalPlayer      = document.getElementById('finalPlayer');
 const backBtn          = document.getElementById('backBtn');
+
+// элементы интерфейса кода доступа
+const premiumCodeInput    = document.getElementById('premiumCodeInput');
+const applyPremiumCodeBtn = document.getElementById('applyPremiumCodeBtn');
+const premiumStatus       = document.getElementById('premiumStatus');
+
+if (premiumStatus) {
+  premiumStatus.textContent = isPremiumUser
+    ? 'Премиум-доступ уже активирован на этом устройстве.'
+    : 'Премиум-варианты будут открыты после ввода кода.';
+}
 
 // состояние выбора
 let studentLastName  = '';
@@ -101,6 +111,8 @@ function populateVariants() {
   const examKey = examSelect.value; // 'oge' или 'ege'
   const variants = getAvailableVariantsForExam(examKey);
 
+  const prev = variantSelect.value;
+
   variantSelect.innerHTML = '';
 
   if (!variants.length) {
@@ -108,6 +120,7 @@ function populateVariants() {
     opt.value = '';
     opt.textContent = 'Нет доступных вариантов';
     variantSelect.appendChild(opt);
+    currentVariantId = null;
     return;
   }
 
@@ -118,8 +131,10 @@ function populateVariants() {
     variantSelect.appendChild(opt);
   });
 
-  // по умолчанию выбираем первый доступный вариант
-  currentVariantId = variants[0].id;
+  // если раньше что-то было выбрано и всё ещё доступно – оставляем
+  const stillExists = variants.some(v => v.id === prev);
+  variantSelect.value = stillExists ? prev : variants[0].id;
+  currentVariantId = variantSelect.value;
 }
 
 examSelect.addEventListener('change', populateVariants);
@@ -127,7 +142,38 @@ variantSelect.addEventListener('change', () => {
   currentVariantId = variantSelect.value;
 });
 
-// При загрузке страницы
+
+// ===== Активация премиум-кода =====
+
+if (applyPremiumCodeBtn) {
+  applyPremiumCodeBtn.addEventListener('click', () => {
+    const code = (premiumCodeInput.value || '').trim();
+    if (!code) {
+      alert('Введите код.');
+      return;
+    }
+
+    if (code === PREMIUM_ACCESS_CODE) {
+      isPremiumUser = true;
+      localStorage.setItem('isPremiumUser', 'true');
+      if (premiumStatus) {
+        premiumStatus.style.color = 'green';
+        premiumStatus.textContent = 'Премиум-доступ активирован. Премиум-варианты доступны в списке.';
+      }
+      populateVariants();
+    } else {
+      isPremiumUser = false;
+      localStorage.setItem('isPremiumUser', 'false');
+      if (premiumStatus) {
+        premiumStatus.style.color = 'red';
+        premiumStatus.textContent = 'Неверный код доступа. Попробуйте ещё раз.';
+      }
+      populateVariants();
+    }
+  });
+}
+
+// Инициализация вариантов при загрузке
 populateVariants();
 
 
@@ -162,7 +208,6 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Человекочитаемый заголовок
   const [group, numStr] = String(currentVariantId).split(':');
   const num = Number(numStr);
   const groupTitle = group === 'free' ? 'бесплатный' : 'премиум';
@@ -193,7 +238,7 @@ startExamBtn.addEventListener('click', async () => {
     studentFirstName,
     studentClass,
     currentExam,
-    currentVariant: num,      // только номер варианта для названия файлов
+    currentVariant: num,
     config: currentConfig,
     micStream
   };
