@@ -13,7 +13,7 @@
     .controls { margin-top: 10px; text-align: center; }
     .center { text-align: center; }
     label { display: inline-block; margin: 5px 0; }
-    input[type="text"] { padding: 4px 8px; width: 200px; }
+    input[type="text"], input[type="email"] { padding: 4px 8px; width: 220px; }
   </style>
   <!-- LameJS для конвертации в MP3 -->
   <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
@@ -32,6 +32,12 @@
       <label>
         Имя:
         <input type="text" id="firstName" placeholder="Иван">
+      </label>
+    </div>
+    <div class="center">
+      <label>
+        Класс:
+        <input type="text" id="className" placeholder="9А">
       </label>
     </div>
     <div class="center" style="margin-top:10px;">
@@ -73,7 +79,7 @@
     <div id="timer">00:00</div>
 
     <div class="controls">
-      <button id="finishBtn" disabled>Закончить задание</button>
+      <button id="finishBtn" disabled>Завершить</button>
     </div>
   </div>
 
@@ -91,10 +97,22 @@
       <div>
         <button id="task3PlayDownloadBtn" disabled>Задание 3: прослушать и скачать MP3</button>
       </div>
+
       <div style="margin-top:20px;">
+        <label>
+          E-mail учителя:
+          <input type="email" id="teacherEmail" placeholder="teacher@example.com">
+        </label>
+      </div>
+      <div>
         <button id="sendTeacherBtn" disabled>Отправить учителю</button>
       </div>
+
+      <div style="margin-top:20px;">
+        <button id="backToStartBtn">Вернуться к выбору экзамена</button>
+      </div>
     </div>
+
     <div class="center" style="margin-top:20px;">
       <audio id="finalPlayer" controls style="width:100%;"></audio>
     </div>
