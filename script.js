@@ -406,4 +406,92 @@ async function convertMultipleWebmToMp3(webmBlobs) {
 
   for (const blob of webmBlobs) {
     const arrayBuffer = await blob.arrayBuffer();
-    const
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    buffers.push(audioBuffer);
+    totalLength += audioBuffer.length;
+    sampleRate = audioBuffer.sampleRate;
+  }
+
+  const merged = new Float32Array(totalLength);
+  let offset = 0;
+  for (const buf of buffers) {
+    merged.set(buf.getChannelData(0), offset);
+    offset += buf.length;
+  }
+
+  const samples = new Int16Array(merged.length);
+  for (let i = 0; i < merged.length; i++) {
+    let s = Math.max(-1, Math.min(1, merged[i]));
+    samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+
+  const mp3Encoder  = new lamejs.Mp3Encoder(1, sampleRate, 128);
+  const sampleBlock = 1152;
+  const mp3Data     = [];
+
+  for (let i = 0; i < samples.length; i += sampleBlock) {
+    const chunk = samples.subarray(i, i + sampleBlock);
+    const buf   = mp3Encoder.encodeBuffer(chunk);
+    if (buf.length > 0) mp3Data.push(buf);
+  }
+  const end = mp3Encoder.flush();
+  if (end.length > 0) mp3Data.push(end);
+
+  return new Blob(mp3Data, { type: 'audio/mp3' });
+}
+
+// ===== ФИНАЛ: ПРОСЛУШКА + СКАЧИВАНИЕ =====
+
+function fioPrefix() {
+  const ln = studentLastName  || 'Student';
+  const fn = studentFirstName || 'Name';
+  return `${ln}_${fn}`;
+}
+
+task1PlayDownloadBtn.addEventListener('click', async () => {
+  if (!task1Blob) return;
+  const mp3 = await convertWebmToMp3(task1Blob);
+  const url = URL.createObjectURL(mp3);
+  finalPlayer.src = url;
+  finalPlayer.play().catch(console.error);
+  downloadBlob(mp3, `${fioPrefix()}_task1.mp3`);
+});
+
+task2PlayDownloadBtn.addEventListener('click', async () => {
+  if (task2Blobs.length !== 6) return;
+  const mp3 = await convertMultipleWebmToMp3(task2Blobs);
+  const url = URL.createObjectURL(mp3);
+  finalPlayer.src = url;
+  finalPlayer.play().catch(console.error);
+  downloadBlob(mp3, `${fioPrefix()}_task2_all.mp3`);
+});
+
+task3PlayDownloadBtn.addEventListener('click', async () => {
+  if (!task3Blob) return;
+  const mp3 = await convertWebmToMp3(task3Blob);
+  const url = URL.createObjectURL(mp3);
+  finalPlayer.src = url;
+  finalPlayer.play().catch(console.error);
+  downloadBlob(mp3, `${fioPrefix()}_task3.mp3`);
+});
+
+// Псевдо-отправка учителю через mailto
+sendTeacherBtn.addEventListener('click', () => {
+  const ln = encodeURIComponent(studentLastName);
+  const fn = encodeURIComponent(studentFirstName);
+  const subject = encodeURIComponent(`Аудио ответов ОГЭ/${currentExam.toUpperCase()}: ${studentLastName} ${studentFirstName}`);
+  const body = encodeURIComponent(
+    `Здравствуйте!\n\n` +
+    `Отправляю аудиозаписи устной части.\n` +
+    `Фамилия, имя: ${studentLastName} ${studentFirstName}\n` +
+    `Экзамен: ${currentExam.toUpperCase()}, вариант ${currentVariant}\n\n` +
+    `Файлы для прикрепления (вы уже скачали их на компьютер):\n` +
+    `- ${fioPrefix()}_task1.mp3\n` +
+    `- ${fioPrefix()}_task2_all.mp3\n` +
+    `- ${fioPrefix()}_task3.mp3\n\n` +
+    `С уважением,\n${studentFirstName}`
+  );
+
+  const teacherEmail = 'mstrmike@yandex.ru'; // ЗАМЕНИТЕ на свой e-mail
+  window.location.href = `mailto:${teacherEmail}?subject=${subject}&body=${body}`;
+});
