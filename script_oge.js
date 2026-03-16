@@ -20,12 +20,12 @@ class OgeEngine {
     this.startIntro();
   }
 
-  // таймер
   updateTimer() {
     const m = Math.floor(this.timeLeft / 60);
     const s = this.timeLeft % 60;
     this.timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
+
   resetTimer() {
     if (this.timer) {
       clearInterval(this.timer);
@@ -33,7 +33,6 @@ class OgeEngine {
     }
   }
 
-  // "Start speaking please" -> beep -> callback
   playStartSpeakingThenBeep(callback) {
     const phrase = this.startSpeakingPlayer;
     const beep   = this.beepPlayer;
@@ -70,7 +69,6 @@ class OgeEngine {
     });
   }
 
-  // запись
   async startRecording(onStopped) {
     try {
       this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
@@ -92,7 +90,6 @@ class OgeEngine {
     }
   }
 
-  // фазы
   startIntro() {
     this.phase = 'intro';
     this.phaseLabel.textContent = 'Инструкция';
@@ -365,13 +362,13 @@ class OgeEngine {
     }
   }
 
-  // mp3 конвертация
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
     const cl = this.studentClass     || 'Class';
     return `${ln}_${fn}_${cl}_var${this.currentVariant}`;
   }
+
   downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
@@ -381,6 +378,7 @@ class OgeEngine {
     a.click();
     document.body.removeChild(a);
   }
+
   async convertWebmToMp3(webmBlob) {
     const arrayBuffer  = await webmBlob.arrayBuffer();
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -407,6 +405,7 @@ class OgeEngine {
     if (end.length > 0) mp3Data.push(end);
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
+
   async convertMultipleWebmToMp3(webmBlobs) {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const buffers      = [];
@@ -456,6 +455,7 @@ class OgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_oge_task1.mp3`);
   }
+
   async playDownloadTask2() {
     if (this.task2Blobs.length !== 6) {
       alert('Записаны не все 6 ответов задания 2.');
@@ -467,6 +467,7 @@ class OgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_oge_task2_all.mp3`);
   }
+
   async playDownloadTask3() {
     if (!this.task3Blob) return;
     const mp3 = await this.convertWebmToMp3(this.task3Blob);
@@ -475,6 +476,7 @@ class OgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_oge_task3.mp3`);
   }
+
   async playDownloadTask4() {}
 
   reset() {
