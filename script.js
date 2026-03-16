@@ -60,7 +60,6 @@ let examEngine = null;
 
 // ===== Вспомогательные функции для free/premium =====
 
-// Собрать список доступных вариантов для экзамена с учётом isPremiumUser
 function getAvailableVariantsForExam(examKey) {
   const examBank = TASK_BANK[examKey] || {};
   const free     = examBank.free     || {};
@@ -68,7 +67,6 @@ function getAvailableVariantsForExam(examKey) {
 
   const result = [];
 
-  // сначала free
   Object.keys(free).sort((a,b) => Number(a)-Number(b)).forEach(num => {
     result.push({
       id: `free:${num}`,
@@ -79,7 +77,6 @@ function getAvailableVariantsForExam(examKey) {
     });
   });
 
-  // если есть премиум-доступ – добавляем premium
   if (isPremiumUser) {
     Object.keys(premium).sort((a,b) => Number(a)-Number(b)).forEach(num => {
       result.push({
@@ -95,7 +92,6 @@ function getAvailableVariantsForExam(examKey) {
   return result;
 }
 
-// Получить конфиг по id вида "free:1" / "premium:3"
 function getConfigByVariantId(examKey, variantId) {
   const [group, numStr] = String(variantId).split(':');
   const num = Number(numStr);
@@ -108,7 +104,7 @@ function getConfigByVariantId(examKey, variantId) {
 // ===== Заполнение select с вариантами =====
 
 function populateVariants() {
-  const examKey = examSelect.value; // 'oge' или 'ege'
+  const examKey = examSelect.value;
   const variants = getAvailableVariantsForExam(examKey);
 
   const prev = variantSelect.value;
@@ -126,12 +122,11 @@ function populateVariants() {
 
   variants.forEach(v => {
     const opt = document.createElement('option');
-    opt.value = v.id;     // free:1 / premium:3
+    opt.value = v.id;
     opt.textContent = v.label;
     variantSelect.appendChild(opt);
   });
 
-  // если раньше что-то было выбрано и всё ещё доступно – оставляем
   const stillExists = variants.some(v => v.id === prev);
   variantSelect.value = stillExists ? prev : variants[0].id;
   currentVariantId = variantSelect.value;
@@ -189,7 +184,7 @@ startExamBtn.addEventListener('click', async () => {
     return;
   }
 
-  currentExam    = examSelect.value;          // 'oge'|'ege'
+  currentExam    = examSelect.value;
   currentVariantId = variantSelect.value || currentVariantId;
 
   const config = getConfigByVariantId(currentExam, currentVariantId);
