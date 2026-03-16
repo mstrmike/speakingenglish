@@ -12,8 +12,8 @@ class EgeEngine {
     this.audioChunks   = [];
 
     this.task1Blob  = null;
-    this.task2Blobs = []; // 4 вопроса
-    this.task3Blobs = []; // 5 ответов
+    this.task2Blobs = [];
+    this.task3Blobs = [];
     this.task4Blob  = null;
   }
 
@@ -26,6 +26,7 @@ class EgeEngine {
     const s = this.timeLeft % 60;
     this.timerDiv.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   }
+
   resetTimer() {
     if (this.timer) {
       clearInterval(this.timer);
@@ -90,7 +91,6 @@ class EgeEngine {
     }
   }
 
-  // фазы ЕГЭ
   startIntro() {
     this.phase = 'intro';
     this.phaseLabel.textContent = 'Инструкция';
@@ -111,7 +111,6 @@ class EgeEngine {
     }, 1000);
   }
 
-  // 1: чтение
   startTask1Prep() {
     this.phase = 'task1_prep';
     this.phaseLabel.textContent = 'Задание 1: подготовка';
@@ -159,7 +158,6 @@ class EgeEngine {
     }, 1000);
   }
 
-  // 2: 4 вопроса по ключевым словам
   startTask2Intro() {
     this.phase = 'task2_intro';
     this.phaseLabel.textContent = 'Задание 2';
@@ -264,7 +262,6 @@ class EgeEngine {
     }, 1000);
   }
 
-  // 3: 5 вопросов
   startTask3Intro() {
     this.phase = 'task3_intro';
     this.phaseLabel.textContent = 'Задание 3';
@@ -372,7 +369,6 @@ class EgeEngine {
     }, 1000);
   }
 
-  // 4: монолог
   startTask4Prep() {
     this.phase = 'task4_prep';
     this.phaseLabel.textContent = 'Задание 4: подготовка';
@@ -485,13 +481,13 @@ class EgeEngine {
     }
   }
 
-  // mp3
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
     const cl = this.studentClass     || 'Class';
     return `${ln}_${fn}_${cl}_var${this.currentVariant}`;
   }
+
   downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');
@@ -501,6 +497,7 @@ class EgeEngine {
     a.click();
     document.body.removeChild(a);
   }
+
   async convertWebmToMp3(webmBlob) {
     const arrayBuffer  = await webmBlob.arrayBuffer();
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -527,6 +524,7 @@ class EgeEngine {
     if (end.length > 0) mp3Data.push(end);
     return new Blob(mp3Data, { type: 'audio/mp3' });
   }
+
   async convertMultipleWebmToMp3(webmBlobs) {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const buffers      = [];
@@ -576,6 +574,7 @@ class EgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task1_reading.mp3`);
   }
+
   async playDownloadTask2() {
     if (this.task2Blobs.length !== 4) {
       alert('Записаны не все 4 вопроса задания 2.');
@@ -587,6 +586,7 @@ class EgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task2_questions4.mp3`);
   }
+
   async playDownloadTask3() {
     if (this.task3Blobs.length !== 5) {
       alert('Записаны не все 5 ответов задания 3.');
@@ -598,6 +598,7 @@ class EgeEngine {
     this.finalPlayer.play().catch(console.error);
     this.downloadBlob(mp3, `${this.fioPrefix()}_ege_task3_answers5.mp3`);
   }
+
   async playDownloadTask4() {
     if (!this.task4Blob) return;
     const mp3 = await this.convertWebmToMp3(this.task4Blob);
