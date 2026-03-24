@@ -21,6 +21,7 @@ class EgeEngine {
     this.startIntro();
   }
 
+  // ===== ТАЙМЕР =====
   updateTimer() {
     const m = Math.floor(this.timeLeft / 60);
     const s = this.timeLeft % 60;
@@ -34,6 +35,7 @@ class EgeEngine {
     }
   }
 
+  // ===== ФРАЗА + BEEP =====
   playStartSpeakingThenBeep(callback) {
     const phrase = this.startSpeakingPlayer;
     const beep   = this.beepPlayer;
@@ -70,6 +72,7 @@ class EgeEngine {
     });
   }
 
+  // ===== ЗАПИСЬ =====
   async startRecording(onStopped) {
     try {
       this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
@@ -91,6 +94,7 @@ class EgeEngine {
     }
   }
 
+  // ===== ФАЗЫ ЕГЭ =====
   startIntro() {
     this.phase = 'intro';
     this.phaseLabel.textContent = 'Инструкция';
@@ -98,7 +102,7 @@ class EgeEngine {
     this.timeLeft = this.config.introTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу к заданию 1';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -111,6 +115,7 @@ class EgeEngine {
     }, 1000);
   }
 
+  // 1: чтение текста
   startTask1Prep() {
     this.phase = 'task1_prep';
     this.phaseLabel.textContent = 'Задание 1: подготовка';
@@ -118,7 +123,7 @@ class EgeEngine {
     this.timeLeft = this.config.task1.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -158,6 +163,7 @@ class EgeEngine {
     }, 1000);
   }
 
+  // 2: вопросы по ключевым словам
   startTask2Intro() {
     this.phase = 'task2_intro';
     this.phaseLabel.textContent = 'Задание 2';
@@ -165,7 +171,7 @@ class EgeEngine {
     this.timeLeft = 5;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'К вопросу 1';
+    this.actionBtn.textContent = 'Далее';
 
     this.task2Blobs = [];
     this.questionIndex = 0;
@@ -192,7 +198,7 @@ class EgeEngine {
     this.phaseLabel.textContent = `Задание 2: вопрос ${n}/4`;
     this.taskDiv.textContent    = this.config.task2.questionText.replace('{n}', n);
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timerDiv.textContent = '';
@@ -262,6 +268,7 @@ class EgeEngine {
     }, 1000);
   }
 
+  // 3: 5 вопросов-ответов
   startTask3Intro() {
     this.phase = 'task3_intro';
     this.phaseLabel.textContent = 'Задание 3';
@@ -269,7 +276,7 @@ class EgeEngine {
     this.timeLeft = 5;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'К вопросу 1';
+    this.actionBtn.textContent = 'Далее';
 
     this.task3Blobs = [];
     this.questionIndex = 0;
@@ -299,7 +306,7 @@ class EgeEngine {
     this.phaseLabel.textContent = `Задание 3: вопрос ${n}/5`;
     this.taskDiv.textContent    = this.config.task3.questionText.replace('{n}', n);
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timerDiv.textContent = '';
@@ -369,6 +376,7 @@ class EgeEngine {
     }, 1000);
   }
 
+  // 4: монолог
   startTask4Prep() {
     this.phase = 'task4_prep';
     this.phaseLabel.textContent = 'Задание 4: подготовка';
@@ -376,7 +384,7 @@ class EgeEngine {
     this.timeLeft = this.config.task4.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -433,47 +441,65 @@ class EgeEngine {
     this.finalPlayer.src = '';
   }
 
+  // ===== ОБРАБОТКА КНОПКИ =====
   handleAction() {
     switch (this.phase) {
       case 'intro':
-        this.resetTimer(); this.startTask1Prep(); break;
+        this.resetTimer();
+        this.startTask1Prep();
+        break;
+
       case 'task1_prep':
-        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask1Rec()); break;
+        this.resetTimer();
+        this.startTask1Rec();
+        break;
+
       case 'task1_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
       case 'task2_intro':
-        this.resetTimer(); this.startTask2QuestionPrep(0); break;
+        this.resetTimer();
+        this.startTask2QuestionPrep(0);
+        break;
+
       case 'task2_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.playStartSpeakingThenBeep(() => this.startTask2QuestionRec(this.questionIndex));
+        this.startTask2QuestionRec(this.questionIndex);
         break;
+
       case 'task2_q_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
       case 'task3_intro':
-        this.resetTimer(); this.startTask3QuestionPrep(0); break;
+        this.resetTimer();
+        this.startTask3QuestionPrep(0);
+        break;
+
       case 'task3_q_prep':
         this.resetTimer();
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.playStartSpeakingThenBeep(() => this.startTask3QuestionRec(this.questionIndex));
+        this.startTask3QuestionRec(this.questionIndex);
         break;
+
       case 'task3_q_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
         break;
 
       case 'task4_prep':
-        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask4Rec()); break;
+        this.resetTimer();
+        this.startTask4Rec();
+        break;
+
       case 'task4_rec':
         this.resetTimer();
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
@@ -481,6 +507,7 @@ class EgeEngine {
     }
   }
 
+  // ===== КОНВЕРТАЦИЯ / СКАЧИВАНИЕ =====
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
