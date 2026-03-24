@@ -20,6 +20,7 @@ class OgeEngine {
     this.startIntro();
   }
 
+  // ===== ТАЙМЕР =====
   updateTimer() {
     const m = Math.floor(this.timeLeft / 60);
     const s = this.timeLeft % 60;
@@ -33,6 +34,7 @@ class OgeEngine {
     }
   }
 
+  // ===== ФРАЗА + BEEP =====
   playStartSpeakingThenBeep(callback) {
     const phrase = this.startSpeakingPlayer;
     const beep   = this.beepPlayer;
@@ -69,6 +71,7 @@ class OgeEngine {
     });
   }
 
+  // ===== ЗАПИСЬ =====
   async startRecording(onStopped) {
     try {
       this.mediaRecorder = new MediaRecorder(this.micStream, { mimeType: 'audio/webm' });
@@ -90,6 +93,7 @@ class OgeEngine {
     }
   }
 
+  // ===== ФАЗЫ ОГЭ =====
   startIntro() {
     this.phase = 'intro';
     this.phaseLabel.textContent = 'Инструкция';
@@ -97,7 +101,7 @@ class OgeEngine {
     this.timeLeft = this.config.introTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к заданию 1';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -117,7 +121,7 @@ class OgeEngine {
     this.timeLeft = this.config.task1.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -164,7 +168,7 @@ class OgeEngine {
     this.timeLeft = 5;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к вопросу 1';
+    this.actionBtn.textContent = 'Далее';
 
     this.questionIndex = 0;
     this.task2Blobs = [];
@@ -194,7 +198,7 @@ class OgeEngine {
     this.phaseLabel.textContent = `Задание 2: вопрос ${n}/6`;
     this.taskDiv.textContent    = this.config.task2.questionText.replace('{n}', n);
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timerDiv.textContent = '';
@@ -271,7 +275,7 @@ class OgeEngine {
     this.timeLeft = this.config.task3.prepTime;
     this.updateTimer();
     this.actionBtn.disabled = false;
-    this.actionBtn.textContent = 'Сразу перейти к записи';
+    this.actionBtn.textContent = 'Далее';
 
     this.resetTimer();
     this.timer = setInterval(() => {
@@ -328,40 +332,63 @@ class OgeEngine {
     this.finalPlayer.src = '';
   }
 
+  // ===== ОБРАБОТКА КНОПКИ "ДАЛЕЕ" / "ЗАКОНЧИТЬ" =====
   handleAction() {
     switch (this.phase) {
       case 'intro':
-        this.resetTimer(); this.startTask1Prep(); break;
+        this.resetTimer();
+        this.startTask1Prep();
+        break;
+
       case 'task1_prep':
-        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask1Rec()); break;
+        // принудительный переход к записи БЕЗ повтора фразы/бипа
+        this.resetTimer();
+        this.startTask1Rec();
+        break;
+
       case 'task1_rec':
         this.resetTimer();
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.mediaRecorder.stop();
+        }
         break;
 
       case 'task2_intro':
-        this.resetTimer(); this.startTask2QuestionPrep(0); break;
+        this.resetTimer();
+        this.startTask2QuestionPrep(0);
+        break;
+
       case 'task2_q_prep':
+        // остановить вопрос/таймер и сразу к записи, без playStartSpeakingThenBeep
         this.resetTimer();
         this.questionPlayer.pause();
         this.questionPlayer.currentTime = 0;
         this.questionPlayer.style.display = 'none';
-        this.playStartSpeakingThenBeep(() => this.startTask2QuestionRec(this.questionIndex));
+        this.startTask2QuestionRec(this.questionIndex);
         break;
+
       case 'task2_q_rec':
         this.resetTimer();
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.mediaRecorder.stop();
+        }
         break;
 
       case 'task3_prep':
-        this.resetTimer(); this.playStartSpeakingThenBeep(() => this.startTask3Rec()); break;
+        this.resetTimer();
+        this.startTask3Rec();
+        break;
+
       case 'task3_rec':
         this.resetTimer();
-        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') this.mediaRecorder.stop();
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.mediaRecorder.stop();
+        }
         break;
     }
   }
 
+  // ===== КОНВЕРТАЦИЯ / СКАЧИВАНИЕ =====
   fioPrefix() {
     const ln = this.studentLastName  || 'Student';
     const fn = this.studentFirstName || 'Name';
